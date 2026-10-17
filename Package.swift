@@ -11,6 +11,7 @@ let package = Package(
   products: [
     .library(name: "Jinx", targets: ["Jinx"]),
     .library(name: "JinxTypes", targets: ["JinxTypes"]),
+    .library(name: "JinxStore", targets: ["JinxStore"]),
     .library(name: "JinxWire", targets: ["JinxWire"]),
     .library(name: "JinxPatch", targets: ["JinxPatch"]),
     .library(name: "JinxJSON", targets: ["JinxJSON"]),
