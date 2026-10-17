@@ -149,8 +149,19 @@ that already has the client's changes.
    Creates send the full local value under a client-chosen creation id;
    updates send a patch, and an empty patch means the entry is dropped;
    destroys send the id.  A create that references another pending
-   create in the same request uses `#creationId` references, which
-   RFC 8620 resolves across method calls in one request.
+   create of the same type uses `#creationId` references within that
+   `/set` call.
+
+   References to a pending create of another type (an Email filed into a
+   Mailbox that is itself pending) are represented from the start but
+   not sent until a later phase, decided 2026-10-17.  The creation id
+   is the local id of a pending create, so it can appear inside another
+   object.s properties and be rewritten when the real id arrives.  What
+   is deferred is the engine work: ordering such creates across types
+   in one request, and holding a dependent change back when the create
+   it references fails or is retried.  Until then, a write that
+   references a pending create of another type is refused with a clear
+   error.  Mail is the likely first consumer, so this lands with phase 5.
 3. Send.  On transport failure or `serverUnavailable`, release the
    claims and retry with backoff.
 4. Apply the response in one transaction: set ids for `created`, set the
@@ -370,6 +381,4 @@ Each phase ends with something a consumer can use.
 
 - [ ] Whether the `SyncStore` protocol is public from the start or an
       implementation detail until NerfJournal needs it.
-- [ ] Whether `#creationId` references across types in one request are
-      needed by any consumer soon, or can wait.
 - [ ] The test script format and driver protocol, to be designed next.
