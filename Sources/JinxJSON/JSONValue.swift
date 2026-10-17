@@ -84,10 +84,12 @@ extension JSONValue {
 }
 
 // MARK: - Literals
-
-extension JSONValue: ExpressibleByNilLiteral {
-  public init(nilLiteral: ()) { self = .null }
-}
+//
+// There is deliberately no ExpressibleByNilLiteral conformance.  With it,
+// a bare `nil` in any expression typed `JSONValue?` infers as
+// `.some(.null)` rather than `.none`, which turned "remove this member"
+// into "store a null" twice in one afternoon.  JSON null is spelled
+// `.null`. -- claude, 2026-10-17
 
 extension JSONValue: ExpressibleByBooleanLiteral {
   public init(booleanLiteral value: Bool) { self = .bool(value) }
@@ -190,5 +192,29 @@ extension JSONValue {
 extension JSONValue: CustomStringConvertible {
   public var description: String {
     (try? serializedString()) ?? "<unserializable JSONValue>"
+  }
+}
+
+// MARK: - JMAP equivalence
+
+extension JSONValue {
+  /// A copy with every `null` object member removed, recursively.  JMAP
+  /// treats a property that is `null` and one that is absent as the
+  /// same, so two objects are the same JMAP object when their stripped
+  /// forms are equal.  Array elements are never removed.
+  public func strippingNullMembers() -> JSONValue {
+    switch self {
+    case .object(let members):
+      return .object(members.compactMapValues { $0.isNull ? nil : $0.strippingNullMembers() })
+    case .array(let elements):
+      return .array(elements.map { $0.strippingNullMembers() })
+    default:
+      return self
+    }
+  }
+
+  /// Equality under JMAP's rule that `null` and absent are the same.
+  public func isJMAPEquivalent(to other: JSONValue) -> Bool {
+    strippingNullMembers() == other.strippingNullMembers()
   }
 }

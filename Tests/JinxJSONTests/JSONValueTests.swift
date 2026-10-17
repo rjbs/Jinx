@@ -21,7 +21,7 @@ private func assertRoundTrip(
   try assertRoundTrip("1.5", is: 1.5)
   try assertRoundTrip("-0.25", is: -0.25)
   try assertRoundTrip("\"hi\"", is: "hi")
-  try assertRoundTrip("[1,\"a\",null]", is: [1, "a", nil])
+  try assertRoundTrip("[1,\"a\",null]", is: [1, "a", .null])
   try assertRoundTrip("{\"b\":1,\"a\":[true]}", is: ["a": [true], "b": 1], serializesAs: "{\"a\":[true],\"b\":1}")
   try assertRoundTrip("\"a/b\"", is: "a/b")
 }
@@ -80,7 +80,14 @@ private func assertAccessors(
   struct Envelope: Codable, Equatable {
     var payload: JSONValue
   }
-  let envelope = Envelope(payload: ["n": [1, nil, "x"]])
+  let envelope = Envelope(payload: ["n": [1, .null, "x"]])
   let data = try JSONEncoder().encode(envelope)
   #expect(try JSONDecoder().decode(Envelope.self, from: data) == envelope)
+}
+
+@Test func jmapEquivalenceIgnoresNullMembers() {
+  let explicit: JSONValue = ["a": .null, "m": ["k": .null, "j": 1], "list": [.null]]
+  #expect(explicit.strippingNullMembers() == ["m": ["j": 1], "list": [.null]])
+  #expect(explicit.isJMAPEquivalent(to: ["m": ["j": 1], "list": [.null]]))
+  #expect(!explicit.isJMAPEquivalent(to: ["m": ["j": 1], "list": []]))
 }
