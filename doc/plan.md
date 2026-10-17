@@ -497,7 +497,7 @@ Each phase ends with something a consumer can use.
    scripted server exists but the script format does not yet.
 3. **JinxTypes**: per-type `/get` arguments on the descriptor, and the
    Mail and Tasks descriptors as data, tested against the scripted
-   server.  No macro.
+   server.  No macro.  Done 2026-10-17.
 4. **Windowed mode**: query subscriptions, retention and eviction,
    partial fetch.  Moved ahead of blobs on 2026-10-17 because a mail
    client against Fastmail is the likely first consumer, and a real
