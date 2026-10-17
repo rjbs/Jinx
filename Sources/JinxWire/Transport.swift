@@ -67,6 +67,13 @@ public struct BlobDownload: Sendable, Hashable {
   public var range: Range<Int>?
   /// The blob's full length, when the server said.
   public var totalLength: Int?
+
+  public init(data: Data, contentType: String? = nil, range: Range<Int>? = nil, totalLength: Int? = nil) {
+    self.data = data
+    self.contentType = contentType
+    self.range = range
+    self.totalLength = totalLength
+  }
 }
 
 /// What the sync engine needs from the network.  `JMAPClient` is the
