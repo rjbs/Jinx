@@ -73,6 +73,7 @@ public final class ScriptedServer: JMAPTransport, Sendable {
     var nextId = 1
     var faults: [Fault] = []
     var requests: [Request] = []
+    var resolved: [Invocation] = []
     var blobs: [String: (data: Data, type: String)] = [:]
     var nextBlob = 1
     var sessionState = 1
@@ -88,7 +89,9 @@ public final class ScriptedServer: JMAPTransport, Sendable {
 
   public init(accountId: String = "acct", capabilities: [String] = [], limits: Limits = Limits()) {
     self.accountId = accountId
-    self.capabilities = capabilities
+    var unique: [String] = []
+    for capability in capabilities where !unique.contains(capability) { unique.append(capability) }
+    self.capabilities = unique
     self.limits = limits
     self.state = Mutex(State())
   }
@@ -150,7 +153,16 @@ public final class ScriptedServer: JMAPTransport, Sendable {
   }
 
   public func clearRequests() {
-    state.withLock { $0.requests = [] }
+    state.withLock {
+      $0.requests = []
+      $0.resolved = []
+    }
+  }
+
+  /// Method calls as processed, with result references resolved, so a
+  /// test can see which ids a back-referenced `/get` actually asked for.
+  public func resolvedCalls(named name: String) -> [Invocation] {
+    state.withLock { $0.resolved.filter { $0.name == name } }
   }
 
   /// Method calls received so far whose name matches, oldest first.
@@ -248,6 +260,7 @@ public final class ScriptedServer: JMAPTransport, Sendable {
           responses.append(Invocation(name: "error", arguments: error.json, callId: call.callId))
           continue
         }
+        s.resolved.append(Invocation(name: call.name, arguments: resolved, callId: call.callId))
         var reply = s.process(call.name, resolved, createdIds: &createdIds, limits: limits)
         if let index = s.faults.firstIndex(where: { if case .rewrite(let m, _) = $0 { return m == call.name } else { return false } }),
            case .rewrite(_, let rewrite) = s.faults.remove(at: index)
