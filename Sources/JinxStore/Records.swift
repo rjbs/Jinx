@@ -210,3 +210,56 @@ public struct JournalEntry: Sendable, Hashable {
     self.changeSet = changeSet
   }
 }
+
+/// A live query the engine keeps current for a windowed type: a filter,
+/// a sort, and a window.  The app names it, so it survives relaunch and
+/// can be re-declared with new parameters under the same name.
+///
+/// A subscription with no filter and no limit covers the whole type, and
+/// turns a windowed type into a full mirror while it exists.
+public struct QuerySubscription: Sendable, Hashable, Codable {
+  public var id: String
+  public var accountId: String
+  public var type: String
+  public var filter: JSONValue?
+  public var sort: [JSONValue]
+  public var position: Int
+  /// `nil` means no limit.
+  public var limit: Int?
+
+  public init(
+    id: String,
+    accountId: String,
+    type: String,
+    filter: JSONValue? = nil,
+    sort: [JSONValue] = [],
+    position: Int = 0,
+    limit: Int? = nil
+  ) {
+    self.id = id
+    self.accountId = accountId
+    self.type = type
+    self.filter = filter
+    self.sort = sort
+    self.position = position
+    self.limit = limit
+  }
+
+  public var coversWholeType: Bool { filter == nil && limit == nil && position == 0 }
+}
+
+/// What the server last said a subscription's window contains.
+public struct SubscriptionResult: Sendable, Hashable, Codable {
+  /// The ids in the window, in the query's order.
+  public var ids: [String]
+  public var total: Int?
+  public var queryState: String?
+  public var canCalculateChanges: Bool
+
+  public init(ids: [String], total: Int? = nil, queryState: String? = nil, canCalculateChanges: Bool = false) {
+    self.ids = ids
+    self.total = total
+    self.queryState = queryState
+    self.canCalculateChanges = canCalculateChanges
+  }
+}

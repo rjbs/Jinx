@@ -71,6 +71,22 @@ public struct GRDBSyncStore: SyncStore {
           PRIMARY KEY (account, type)
         );
 
+        CREATE TABLE jinx_subscription (
+          account    TEXT NOT NULL,
+          id         TEXT NOT NULL,
+          type       TEXT NOT NULL,
+          definition TEXT NOT NULL,
+          result     TEXT,
+          PRIMARY KEY (account, id)
+        );
+
+        CREATE TABLE jinx_pin (
+          account TEXT NOT NULL,
+          type    TEXT NOT NULL,
+          id      TEXT NOT NULL,
+          PRIMARY KEY (account, type, id)
+        );
+
         CREATE TABLE jinx_journal (
           seq        INTEGER PRIMARY KEY AUTOINCREMENT,
           account    TEXT NOT NULL,
@@ -326,9 +342,70 @@ public struct GRDBTransaction: SyncTransaction {
     try Int64.fetchOne(db, sql: "SELECT COALESCE(MAX(seq), 0) FROM jinx_journal") ?? 0
   }
 
+  // MARK: Subscriptions and pins
+
+  private static func decodeSubscription(_ row: Row) throws -> QuerySubscription {
+    try JSONDecoder().decode(QuerySubscription.self, from: Data((row["definition"] as String).utf8))
+  }
+
+  public func subscriptions(accountId: String) throws -> [QuerySubscription] {
+    try Row.fetchAll(db, sql: "SELECT definition FROM jinx_subscription WHERE account = ? ORDER BY id", arguments: [accountId]).map(Self.decodeSubscription)
+  }
+
+  public func subscription(accountId: String, id: String) throws -> QuerySubscription? {
+    try Row.fetchOne(db, sql: "SELECT definition FROM jinx_subscription WHERE account = ? AND id = ?", arguments: [accountId, id]).map(Self.decodeSubscription)
+  }
+
+  public func setSubscription(_ subscription: QuerySubscription) throws {
+    let definition = String(decoding: try JSONEncoder().encode(subscription), as: UTF8.self)
+    try db.execute(
+      sql: """
+        INSERT INTO jinx_subscription (account, id, type, definition) VALUES (?, ?, ?, ?)
+        ON CONFLICT DO UPDATE SET type = excluded.type, definition = excluded.definition
+        """,
+      arguments: [subscription.accountId, subscription.id, subscription.type, definition]
+    )
+  }
+
+  public func removeSubscription(accountId: String, id: String) throws {
+    try db.execute(sql: "DELETE FROM jinx_subscription WHERE account = ? AND id = ?", arguments: [accountId, id])
+  }
+
+  public func subscriptionResult(accountId: String, id: String) throws -> SubscriptionResult? {
+    guard let text = try String.fetchOne(db, sql: "SELECT result FROM jinx_subscription WHERE account = ? AND id = ? AND result IS NOT NULL", arguments: [accountId, id]) else {
+      return nil
+    }
+    return try JSONDecoder().decode(SubscriptionResult.self, from: Data(text.utf8))
+  }
+
+  public func setSubscriptionResult(_ result: SubscriptionResult?, accountId: String, id: String) throws {
+    let text = try result.map { String(decoding: try JSONEncoder().encode($0), as: UTF8.self) }
+    try db.execute(sql: "UPDATE jinx_subscription SET result = ? WHERE account = ? AND id = ?", arguments: [text, accountId, id])
+  }
+
+  public func pins(accountId: String, type: String) throws -> Set<String> {
+    Set(try String.fetchAll(db, sql: "SELECT id FROM jinx_pin WHERE account = ? AND type = ?", arguments: [accountId, type]))
+  }
+
+  public func setPinned(_ pinned: Bool, accountId: String, type: String, ids: [String]) throws {
+    for id in ids {
+      if pinned {
+        try db.execute(sql: "INSERT OR IGNORE INTO jinx_pin (account, type, id) VALUES (?, ?, ?)", arguments: [accountId, type, id])
+      } else {
+        try db.execute(sql: "DELETE FROM jinx_pin WHERE account = ? AND type = ? AND id = ?", arguments: [accountId, type, id])
+      }
+    }
+  }
+
+  public func ids(accountId: String, type: String) throws -> Set<String> {
+    Set(try String.fetchAll(db, sql: "SELECT id FROM jinx_object WHERE account = ? AND type = ? AND id IS NOT NULL", arguments: [accountId, type]))
+  }
+
   // MARK: Reset
 
   public func wipe(accountId: String) throws {
+    try db.execute(sql: "DELETE FROM jinx_subscription WHERE account = ?", arguments: [accountId])
+    try db.execute(sql: "DELETE FROM jinx_pin WHERE account = ?", arguments: [accountId])
     try db.execute(sql: "DELETE FROM jinx_pending WHERE account = ?", arguments: [accountId])
     try db.execute(sql: "DELETE FROM jinx_object WHERE account = ?", arguments: [accountId])
     try db.execute(sql: "DELETE FROM jinx_state WHERE account = ?", arguments: [accountId])

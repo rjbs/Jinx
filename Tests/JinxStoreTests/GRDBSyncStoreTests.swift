@@ -203,3 +203,48 @@ private func insert(
   #expect(seen?.local == ["from": "cli"])
   #expect(seen?.pending == .update)
 }
+
+@Test func subscriptionsStoreDefinitionsAndResultsSeparately() async throws {
+  let store = try makeStore()
+  let inbox = QuerySubscription(id: "inbox", accountId: account, type: "Email", filter: ["inMailbox": "m1"], sort: [["property": "receivedAt", "isAscending": false]], limit: 50)
+  let all = QuerySubscription(id: "everything", accountId: account, type: "Email")
+  #expect(!inbox.coversWholeType)
+  #expect(all.coversWholeType)
+  try await store.write { tx in
+    try tx.setSubscription(inbox)
+    try tx.setSubscription(all)
+    try tx.setSubscriptionResult(SubscriptionResult(ids: ["e2", "e1"], total: 2, queryState: "q1", canCalculateChanges: true), accountId: account, id: "inbox")
+  }
+  #expect(try await store.read { tx in try tx.subscriptions(accountId: account) } == [all, inbox])
+  #expect(try await store.read { tx in try tx.subscription(accountId: account, id: "inbox") } == inbox)
+  #expect(try await store.read { tx in try tx.subscriptionResult(accountId: account, id: "inbox") } == SubscriptionResult(ids: ["e2", "e1"], total: 2, queryState: "q1", canCalculateChanges: true))
+  #expect(try await store.read { tx in try tx.subscriptionResult(accountId: account, id: "everything") } == nil)
+
+  let wider = { var w = inbox; w.limit = 100; return w }()
+  try await store.write { tx in try tx.setSubscription(wider) }
+  #expect(try await store.read { tx in try tx.subscription(accountId: account, id: "inbox") }?.limit == 100)
+  #expect(try await store.read { tx in try tx.subscriptionResult(accountId: account, id: "inbox") }?.ids == ["e2", "e1"], "redefining keeps the result until the engine clears it")
+
+  try await store.write { tx in
+    try tx.setSubscriptionResult(nil, accountId: account, id: "inbox")
+    try tx.removeSubscription(accountId: account, id: "everything")
+  }
+  #expect(try await store.read { tx in try tx.subscriptionResult(accountId: account, id: "inbox") } == nil)
+  #expect(try await store.read { tx in try tx.subscriptions(accountId: account) }.map(\.id) == ["inbox"])
+}
+
+@Test func pinsAndHeldIds() async throws {
+  let store = try makeStore()
+  try await insert(store, type: "Email", id: "e1", local: [:])
+  try await insert(store, type: "Email", local: [:])
+  try await store.write { tx in
+    try tx.setPinned(true, accountId: account, type: "Email", ids: ["e1", "e9"])
+    try tx.setPinned(true, accountId: account, type: "Email", ids: ["e1"])
+  }
+  #expect(try await store.read { tx in try tx.pins(accountId: account, type: "Email") } == ["e1", "e9"])
+  #expect(try await store.read { tx in try tx.ids(accountId: account, type: "Email") } == ["e1"])
+  try await store.write { tx in try tx.setPinned(false, accountId: account, type: "Email", ids: ["e9"]) }
+  #expect(try await store.read { tx in try tx.pins(accountId: account, type: "Email") } == ["e1"])
+  try await store.write { tx in try tx.wipe(accountId: account) }
+  #expect(try await store.read { tx in try tx.pins(accountId: account, type: "Email") } == [])
+}

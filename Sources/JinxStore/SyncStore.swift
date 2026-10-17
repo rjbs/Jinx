@@ -65,6 +65,23 @@ public protocol SyncTransaction {
   func journal(after seq: Int64) throws -> [JournalEntry]
   func latestJournalSeq() throws -> Int64
 
+  // MARK: Subscriptions and pins
+
+  func subscriptions(accountId: String) throws -> [QuerySubscription]
+  func subscription(accountId: String, id: String) throws -> QuerySubscription?
+  /// Inserts or replaces a subscription definition.  The stored result
+  /// is kept; the engine clears it when the definition changed.
+  func setSubscription(_ subscription: QuerySubscription) throws
+  func removeSubscription(accountId: String, id: String) throws
+  func subscriptionResult(accountId: String, id: String) throws -> SubscriptionResult?
+  func setSubscriptionResult(_ result: SubscriptionResult?, accountId: String, id: String) throws
+
+  func pins(accountId: String, type: String) throws -> Set<String>
+  func setPinned(_ pinned: Bool, accountId: String, type: String, ids: [String]) throws
+
+  /// The JMAP ids of every object of a type the store holds.
+  func ids(accountId: String, type: String) throws -> Set<String>
+
   // MARK: Reset
 
   /// Discards every object, log entry, state string and journal row
