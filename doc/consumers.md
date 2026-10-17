@@ -29,7 +29,7 @@ Sources:
 | `/queryChanges` | Open question | Not planned | Server reports `canCalculateChanges` false |
 | Push | EventSource, polling fallback | Unspecified | EventSource, held by the app only; the CLI pushes once after a write |
 | Storage | Open; must persist across launches | Undecided; Application Support for files | GRDB, sharing a file with app tables, Int64 rowids, two processes |
-| Platform floor | iOS and macOS 27 | Undecided | macOS 14, Swift 5 language mode |
+| Platform floor | iOS and macOS 27 | iOS 27 | macOS 27 (raised from 14 on 2026-10-17); Swift 5 language mode |
 | Observation | Created, updated, destroyed by type and id; async sequences | Unspecified | A "rows changed" signal; no SwiftUI types in the library |
 | Distinctive need | Coherent cross-type snapshots; raw HTML handed out unsanitized | A changed `blobId` invalidates cached audio; Track syncs before Playlist | Foreign properties preserved; idempotent creates by `uid`; per-row errors |
 
@@ -78,9 +78,9 @@ client-chosen property.
    metadata and NerfJournal's tasks are full mirrors.  The plan: windowed
    is the core model, and a full mirror is one unbounded subscription.
    Juke's "the library exceeds the device" is about blobs, not objects.
-4. **Platform floor.**  RJBS targets iOS and macOS 27.  NerfJournal ships
-   on macOS 14 in Swift 5 language mode.  Nothing in sync needs a new
-   OS.  A decision is needed; see the plan.
+4. **Platform floor.**  RJBS targets iOS and macOS 27.  NerfJournal shipped
+   on macOS 14 and is being raised to 27 to match.  Decided 2026-10-17:
+   Jinx requires iOS and macOS 27.
 5. **Identity.**  NerfJournal keys rows by Int64 rowid with a nullable
    `remoteID`.  Jinx's own store keys by JMAP id, with a client-chosen
    creation id standing in until the server assigns one.  The plan: the

@@ -306,10 +306,12 @@ store and transport calls are async; the change stream is consumed off
 the actor.  Jinx is consumable from Swift 5-mode code, which NerfJournal
 is.
 
-The platform floor is a decision for RJBS.  Nothing in Jinx needs an OS
-newer than macOS 14 or iOS 17, and NerfJournal ships on macOS 14, so the
-recommendation is to set the floor there and raise it only when some API
-makes that worth doing.
+The platform floor is iOS 27 and macOS 27, decided 2026-10-17.  RJBS is
+the whole user base, and NerfJournal is raising its own floor to match.
+Nothing in sync strictly needs an OS that new, but the floor means no
+availability annotations, and it makes `ProgressManager` and
+`Subprogress` available for reporting initial sync and blob download
+progress.
 
 ## Testing
 
@@ -357,7 +359,6 @@ Each phase ends with something a consumer can use.
 
 ## Decisions needed
 
-- [ ] The platform floor: macOS 14 and iOS 17, or 27.
 - [ ] Whether writes belong in Jinx (this plan) or the mail document's
       read-only split is preserved literally.
 - [ ] Whether the `SyncStore` protocol is public from the start or an
