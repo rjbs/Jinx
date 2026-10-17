@@ -241,11 +241,28 @@ refresh is the app's job, through the same "run a pass" entry point.
 ## Writes
 
 The write API is small: create an object of a type from a JSON value,
-update by id with either a patch or a closure over the current value,
-destroy by id, and a transaction that groups any number of these so a
-bulk operation such as NerfJournal's sweep becomes one log batch.
-Creates return a local handle immediately; the JMAP id arrives through
-the change stream when the push succeeds.
+update by id, destroy by id, and a transaction that groups any number
+of these so a bulk operation such as NerfJournal's sweep becomes one
+log batch and one `/set` per type.  Creates return a stable local key
+immediately; the JMAP id arrives through the change stream when the
+push succeeds.
+
+An update takes one of three forms: a patch, applied to the current
+local JSON; a closure that mutates the current local JSON in place; or
+a **replacement encoding**, which merges only the type's declared
+**owned properties** from the encoding into the current JSON, adding,
+changing and removing those keys and touching nothing else.  The third
+form is for apps with a codec from their own model to the wire shape.
+It must be scoped to the owned set, because the local value is the full
+server object; diffing it against an encoding that mentions only the
+app's properties would emit a removal for every property the app does
+not model and delete other clients' data on the server.  This was
+caught by NerfJournal's agent on 2026-10-17.
+
+Two bulk entry points sit beside these: **adopt**, which takes existing
+local objects as pending creates for an import or a one-time migration;
+and **wipe**, which discards every object, log entry and state string
+for a factory reset.
 
 Writes live in Jinx rather than in a separate layer, decided 2026-10-17.
 Optimistic overlay needs the sync layer to know what is pending, so a
@@ -271,14 +288,18 @@ as Task's `uid`, and a filter that finds an object by it.  Before
 resending a create after an ambiguous failure, the engine queries by
 that property and adopts the existing id if found, and it treats
 `alreadyExists` and an `invalidProperties` naming that property as the
-same answer.  A type with no client identity accepts the duplicate risk,
+same answer.  Adoption fills in the JMAP id on the existing row; the
+local key never changes, so nothing in the app's tables or UI moves.  A type with no client identity accepts the duplicate risk,
 and the documentation says so.
 
-**Foreign properties survive** because the patch is a diff between two
-encodings that mention only the properties the app models, and the
-snapshot is the object as fetched.  A `mayPatch(path)` veto per type
-falls back to replacing a whole subtree where patching inside it would
-be ambiguous.
+**Foreign properties survive** because every write form above changes
+only what it names, the snapshot is the object as fetched, and the diff
+between them therefore mentions only what the app changed.  The diff
+recurses into objects and emits per-entry patches, so a map such as
+Task's `keywords` or `links` keeps entries other clients put there; it
+never recurses into arrays.  A `mayPatch(path)` veto per type falls
+back to replacing a whole subtree where patching inside it would be
+ambiguous.
 
 ## Blobs
 
@@ -326,13 +347,21 @@ processes on one WAL-mode file: short transactions, claims rather than
 locks.  Apps may run read-only SQL against the `jinx_` tables, and that
 layout is documented and versioned.
 
-Reads from the engine are by id, by id set, and by subscription (an
-ordered id list plus total).  Beyond that, queries are the app's
+Reads from the engine are by local key or JMAP id, by id set, by
+subscription (an ordered id list plus total), and all objects of a type
+in one call, for apps small enough to filter in memory.  Every read
+returns the local value with its sync metadata: JMAP id if known,
+pending state, and last error.  Beyond that, queries are the app.s
 business.  The engine also exposes a status value for a settings pane:
 connected or offline, last pull, pending count, and per-object errors.
 
 **Change stream.**  An `AsyncStream` of change sets, emitted after each
-commit.  A change set names created, updated and destroyed ids per type,
+commit.  Each commit also appends its change set to a journal table and
+posts a Darwin notification named for the database file, so an engine
+in another process wakes, reads the journal rows it has not yet seen,
+and emits them on its own stream.  Both processes see identical change
+sets, and an app with a CLI and a GUI on one file needs no signaling of
+its own.  A change set names created, updated and destroyed ids per type,
 subscriptions whose id lists changed, pending entries that failed, and
 blob events.  There are no SwiftUI types anywhere in Jinx.
 
@@ -341,8 +370,8 @@ blob events.  There are no SwiftUI types anywhere in Jinx.
 A **type descriptor** carries: the JMAP type name, the capability URN,
 the account type it lives in, the sync mode, dependencies, the summary
 and full property sets, which properties hold ids of which types, which
-hold blobIds, the client identity property and its filter, and the
-`mayPatch` veto.
+hold blobIds, the client identity property and its filter, the owned property set
+that a replacement encoding may touch, and the `mayPatch` veto.
 
 JSON is represented by a `JSONValue` enum that is `Sendable`,
 `Equatable` and `Codable`, never `[String: Any]`.  Every object the
