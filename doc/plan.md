@@ -28,7 +28,7 @@ is usable without the ones above it.
 ```
   App code: SwiftUI, a CLI, a playback engine
   ──────────────────────────────────────────────────────────────
-  JinxTypes   @JMAPObject macro; standard Mail and Tasks types
+  JinxTypes   sync facts about standard Mail and Tasks types, as data
   Jinx        SyncEngine: push, pull, resync, subscriptions,
               blob cache, change stream.  The public surface.
   JinxStore   SyncStore protocol and its GRDB implementation
@@ -195,7 +195,7 @@ that already has the client's changes.
    in one request, and holding a dependent change back when the create
    it references fails or is retried.  Until then, a write that
    references a pending create of another type is refused with a clear
-   error.  Mail is the likely first consumer, so this lands with phase 5.
+   error.  Mail is the likely first consumer, so this lands with the windowed-mode phase.
 3. Send.  On transport failure or `serverUnavailable`, release the
    claims and retry with backoff.
 4. Apply the response in one transaction: set ids for `created`, set the
@@ -382,12 +382,27 @@ JSON is represented by a `JSONValue` enum that is `Sendable`,
 engine hands out is a `JSONValue` wrapped in a type that knows its
 descriptor.
 
-The `@JMAPObject("Track")` macro on a struct generates the descriptor
-from the struct's stored properties and attributes, plus typed accessors
-over the underlying JSON, so unknown properties are preserved rather than
-dropped by `Codable`.  JinxTypes ships descriptors for Mail (Mailbox,
-Thread, Email, Identity, EmailSubmission) and Tasks (Task, TaskList).
-Everything a consumer needs to declare a type should fit on one screen.
+A descriptor also carries extra `/get` arguments merged into every fetch
+of the type, because standard types have them: Email's `bodyProperties`,
+`fetchHTMLBodyValues` and `maxBodyValueBytes` are the reason.
+
+Typed Swift models of standard types belong to the apps, decided
+2026-10-17: Task's lenient-read rules and codec are NerfJournal's, an
+`Email` struct is the mail client's.  Jinx is generic over JSON and no
+part of the engine needs a typed wrapper.  What JinxTypes ships is the
+sync-relevant facts about standard types as data, a few lines each:
+name, capability, dependency order, owned properties, client identity,
+the patch veto.  Those come from the RFCs rather than from any app, are
+easy to get subtly wrong (CalendarEvent must veto patches inside
+`recurrenceOverrides`; Task's `uid` is its identity), and are what a
+conformance suite checks a client against.  JinxTypes is reference
+data, not a type library.
+
+The `@JMAPObject` macro is deferred, same decision.  With models
+downstream and a descriptor five lines by hand, the macro would only
+generate accessors over JSON for an app's own types, at the cost of a
+swift-syntax dependency on every build.  It returns when a consumer,
+probably Juke declaring Track, feels the pain.
 
 ## Concurrency and platform
 
@@ -480,11 +495,16 @@ Each phase ends with something a consumer can use.
    This completes NerfJournal's needs and Juke's metadata sync.  Done
    2026-10-17, including the run loop and cross-process delivery; the
    scripted server exists but the script format does not yet.
-3. **JinxTypes**: the macro, Mail and Tasks descriptors.
-4. **Blobs**: the blob store, ranged download and resume, invalidation.
+3. **JinxTypes**: per-type `/get` arguments on the descriptor, and the
+   Mail and Tasks descriptors as data, tested against the scripted
+   server.  No macro.
+4. **Windowed mode**: query subscriptions, retention and eviction,
+   partial fetch.  Moved ahead of blobs on 2026-10-17 because a mail
+   client against Fastmail is the likely first consumer, and a real
+   account is far too big for full-mirror Email.  Bodies come through
+   `Email/get`, so mail does not need blobs to start.
+5. **Blobs**: the blob store, ranged download and resume, invalidation.
    Juke's phase 1 (pinned downloads) is possible here.
-5. **Windowed mode**: query subscriptions, retention and eviction,
-   partial fetch.  The mail experiments start here.
 6. **Scripted-server tier**, then the conformance tier against the
    reference server.  The scripted tier should begin alongside phase 2
    rather than after it, since it is how phase 2 gets tested.
