@@ -22,8 +22,8 @@ expressed as data rather than as Swift tests wherever possible.
 
 ## Shape
 
-One package, six modules.  Each lower module is usable without the ones
-above it.
+One package, six library modules plus a test server.  Each lower module
+is usable without the ones above it.
 
 ```
   App code: SwiftUI, a CLI, a playback engine
@@ -36,6 +36,9 @@ above it.
   JinxWire    session, request builder, back-references, typed
               errors, HTTP transport, EventSource, blob transfer
   JinxJSON    JSONValue, the one JSON representation; JSON pointers
+
+  JinxScriptedServer   an in-process JMAP server for tests, beside the
+                       stack; depends on JinxWire and JinxPatch
 ```
 
 All three consumers use the whole stack.  NerfJournal was going to
@@ -468,12 +471,15 @@ not from designing it in advance, so it waits until phase 2 (decided
 
 Each phase ends with something a consumer can use.
 
-0. Package skeleton, modules, CI, the documents above.
+0. Package skeleton, modules, CI, the documents above.  Done 2026-10-17,
+   except CI, which waits for a remote.
 1. **JinxWire and JinxPatch** with unit tests.  NerfJournal can start
-   consuming these for its codec work.
+   consuming these for its codec work.  Done 2026-10-17.
 2. **SyncStore, the engine in full mode, GRDBSyncStore**: push, pull,
    resync, state handling, EventSource, error classification, claims.
-   This completes NerfJournal's needs and Juke's metadata sync.
+   This completes NerfJournal's needs and Juke's metadata sync.  Done
+   2026-10-17, including the run loop and cross-process delivery; the
+   scripted server exists but the script format does not yet.
 3. **JinxTypes**: the macro, Mail and Tasks descriptors.
 4. **Blobs**: the blob store, ranged download and resume, invalidation.
    Juke's phase 1 (pinned downloads) is possible here.

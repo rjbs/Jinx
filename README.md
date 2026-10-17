@@ -6,7 +6,9 @@ data in sync with a server that implements standard JMAP semantics
 for Tasks, and application-defined types such as a music library's Track
 and Playlist.
 
-Nothing is implemented yet.  The design is in `doc/`:
+The design is in `doc/`; phases 0 to 2 of the plan are implemented:
+the wire, patch, store and engine modules, with a scripted in-process
+JMAP server for tests.  Run `swift test` to see it all pass.
 
 - [consumers.md](doc/consumers.md): the applications Jinx must serve and
   what each needs.
