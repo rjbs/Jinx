@@ -55,3 +55,17 @@ private func parse(_ text: String) -> [ServerSentEvent] {
   #expect(change.changed == ["a1": ["Email": "s1", "Mailbox": "s2"], "a2": ["Task": "t"]])
   #expect(throws: JMAPError.self) { try StateChange(json: json("{\"changed\": {}}")) }
 }
+
+private func split(_ text: String) -> [String] {
+  var splitter = LineSplitter()
+  return Array(text.utf8).compactMap { splitter.feed($0) }
+}
+
+@Test func lineSplitterHonorsEveryTerminatorAndEmptyLines() {
+  #expect(split("a\nb\n\n") == ["a", "b", ""])
+  #expect(split("a\r\nb\r\n\r\n") == ["a", "b", ""])
+  #expect(split("a\rb\r\r") == ["a", "b", ""])
+  #expect(split("a\r\n\nb") == ["a", ""])
+  #expect(split("unterminated") == [])
+  #expect(split("é\n") == ["é"])
+}

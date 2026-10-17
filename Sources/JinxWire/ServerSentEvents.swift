@@ -86,3 +86,38 @@ public struct StateChange: Sendable, Hashable {
     changed = accounts.mapValues { $0.objectValue?.compactMapValues(\.stringValue) ?? [:] }
   }
 }
+
+/// Splits a byte stream into lines on LF, CR, or CRLF, as the SSE
+/// grammar requires, and reports empty lines faithfully.  Foundation's
+/// `AsyncLineSequence` drops the trailing empty line, which is the very
+/// line that ends an event. -- claude, 2026-10-17
+public struct LineSplitter: Sendable {
+  private var buffer: [UInt8] = []
+  private var lastWasCR = false
+
+  public init() {}
+
+  /// Consumes one byte and returns the line it completed, if any.
+  public mutating func feed(_ byte: UInt8) -> String? {
+    switch byte {
+    case 0x0A:
+      if lastWasCR {
+        lastWasCR = false
+        return nil
+      }
+      return take()
+    case 0x0D:
+      lastWasCR = true
+      return take()
+    default:
+      lastWasCR = false
+      buffer.append(byte)
+      return nil
+    }
+  }
+
+  private mutating func take() -> String {
+    defer { buffer.removeAll(keepingCapacity: true) }
+    return String(decoding: buffer, as: UTF8.self)
+  }
+}
