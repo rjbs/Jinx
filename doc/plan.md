@@ -108,9 +108,26 @@ as their referrer, and lets them go when nothing refers to them.  Everything els
 a per-type policy (least recently read, under a count cap) decides when.
 `Foo/changes` on a windowed type is applied as: updated ids that are held
 are refetched, destroyed ids are removed, and created ids are ignored
-because the query subscriptions will surface them.  A full mirror is the
-degenerate case of one unbounded query subscription with no eviction,
-and the engine treats it that way internally.
+because the query subscriptions will surface them, unless an unbounded
+subscription exists (below), in which case they are fetched.  A full
+mirror is the degenerate case of one unbounded query subscription with
+no eviction, and the engine treats it that way internally.
+
+### Moving between the modes
+
+The mode is not fixed per type; it is a question of which subscriptions
+exist, and an app can change it at runtime (decided 2026-10-17).  The
+expected case is mail on a new device: Email starts windowed so work can
+begin at once, and the app later adds the unbounded subscription so a
+background fill makes the account fully available offline hours later.
+The fill is the full-mode initial sync, chunked and committed per chunk
+with partial status, and the app can pause it by policy, for example
+off power or off wifi.  While a fill is in progress, created ids from
+`/changes` are fetched rather than ignored, because the fill's paging
+covers only what existed when it started, and `/changes` must cover
+the rest; without this rule a message arriving during a long fill would
+be lost.  Removing the unbounded subscription takes the type back to
+windowed, and everything not otherwise retained becomes evictable.
 
 Mail's Mailbox is full; Email and Thread are windowed, since a large
 account has nearly as many Threads as Emails.  An app can begin work
