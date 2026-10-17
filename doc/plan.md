@@ -502,7 +502,10 @@ Each phase ends with something a consumer can use.
    partial fetch.  Moved ahead of blobs on 2026-10-17 because a mail
    client against Fastmail is the likely first consumer, and a real
    account is far too big for full-mirror Email.  Bodies come through
-   `Email/get`, so mail does not need blobs to start.
+   `Email/get`, so mail does not need blobs to start.  Done 2026-10-17:
+   eviction is immediate rather than least-recently-used, and partial
+   fetch is an on-demand `fetch` with extra arguments rather than a
+   tracked fetch level; both are recorded as threads.
 5. **Blobs**: the blob store, ranged download and resume, invalidation.
    Juke's phase 1 (pinned downloads) is possible here.
 6. **Scripted-server tier**, then the conformance tier against the
