@@ -343,13 +343,18 @@ Three tiers, sharing one script format wherever two tiers can.
    and back-references, error classification, the store.
 2. **Scripted server tier.**  A test is data: a sequence of server states
    and client operations, with assertions on the store and the change
-   stream after each step.  An in-process fake server plays the script.
-   This tier is fast, deterministic, and can model a server that
-   misbehaves: state lost mid-sync, `maxObjectsInGet` exceeded, a
-   response dropped on the floor.
-3. **Conformance tier.**  The same scripts run against a reference server
-   (separate project, not Swift), with a driver protocol the client under
-   test implements, so other JMAP clients can be tested too.
+   stream after each step.  An in-process server holds the data and
+   computes real responses, including `/changes` between any two states
+   it has held.  It is a small but correct JMAP server, and it gets its
+   own specification so that it can be reimplemented later.  To keep it
+   small it serves generic test types (a few scalar properties, a
+   reference between types, a blob property, a trivial filter and sort
+   vocabulary) rather than Mail or Tasks.  This tier is fast and
+   deterministic.
+3. **Conformance tier.**  The same scripts run against a separately
+   running reference server, a later reimplementation of the tier 2
+   server in a portable language, probably Go.  A driver protocol the
+   client under test implements lets other JMAP clients run the corpus.
 
 The hard cases the mail document lists are the first scripts: lost or
 invalid state, changes arriving mid-sync, destroy and recreate, an Email
@@ -357,8 +362,21 @@ moving between Mailboxes, interrupted syncs.  To those add: a lost create
 response, a push and pull racing in two processes, a changed blobId, and
 a query subscription on a server without `canCalculateChanges`.
 
+Scripts never contain canned responses.  A script step is one of four
+kinds: a server state transition, a fault, a client operation, or an
+assertion about what the client believes.  Faults are named behaviors
+with parameters, applied as interceptors on the stateful server, for
+misbehavior a correct server never produces: `cannotCalculateChanges` on
+the next `/changes`, a `/set` response dropped after it was applied, a
+wrong `oldState`, a tiny `maxObjectsInGet`.  Client operations are a
+small JSON instruction set, roughly "write this to the local store",
+"process the pending event stream", "synchronize type X".
+
 The test script format and the driver protocol are their own design,
-still to be worked out with RJBS, and will live in `doc/testing.md`.
+still to be worked out with RJBS, and will live in `doc/testing.md`.  The exact
+format is expected to surface from writing the first concrete tests,
+not from designing it in advance, so it waits until phase 2 (decided
+2026-10-17).
 
 ## Order of work
 
