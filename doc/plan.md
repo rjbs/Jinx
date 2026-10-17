@@ -279,7 +279,9 @@ value, fetch level, last error), the pending log (append, claim with a
 staleness timeout, release, delete), per-type state strings, subscription
 definitions and their id lists, retention metadata, and the blob index.
 Handles are opaque to the engine, so an app can key by Int64 rowid and
-a nullable remote id, as NerfJournal does.
+a nullable remote id, as NerfJournal does.  The protocol is public from
+the first release, decided 2026-10-17, since NerfJournal implements it
+in phase 2; its stability is part of the library.s contract.
 
 **`GRDBSyncStore`** is the implementation most apps will use.  It owns
 tables with a `jinx_` prefix, stores JSON as text, and registers its
@@ -379,6 +381,4 @@ Each phase ends with something a consumer can use.
 
 ## Decisions needed
 
-- [ ] Whether the `SyncStore` protocol is public from the start or an
-      implementation detail until NerfJournal needs it.
 - [ ] The test script format and driver protocol, to be designed next.
