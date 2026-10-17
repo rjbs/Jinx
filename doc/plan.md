@@ -22,7 +22,7 @@ expressed as data rather than as Swift tests wherever possible.
 
 ## Shape
 
-One package, five modules.  Each lower module is usable without the ones
+One package, six modules.  Each lower module is usable without the ones
 above it.
 
 ```
@@ -32,9 +32,10 @@ above it.
   Jinx        SyncEngine: push, pull, resync, subscriptions,
               blob cache, change stream.  The public surface.
   JinxStore   SyncStore protocol and its GRDB implementation
-  JinxPatch   JSONValue; diff, apply and rebase as pure functions
+  JinxPatch   diff, apply, rebase and owned-key merge, pure
   JinxWire    session, request builder, back-references, typed
               errors, HTTP transport, EventSource, blob transfer
+  JinxJSON    JSONValue, the one JSON representation; JSON pointers
 ```
 
 All three consumers use the whole stack.  NerfJournal was going to
