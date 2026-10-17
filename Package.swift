@@ -42,6 +42,7 @@ let package = Package(
     .testTarget(name: "JinxStoreTests", dependencies: ["JinxStore"]),
     .testTarget(name: "JinxScriptedServerTests", dependencies: ["JinxScriptedServer"]),
     .testTarget(name: "JinxTests", dependencies: ["Jinx", "JinxScriptedServer"]),
+    .testTarget(name: "JinxTypesTests", dependencies: ["JinxTypes", "JinxScriptedServer"]),
   ],
   swiftLanguageModes: [.v6]
 )

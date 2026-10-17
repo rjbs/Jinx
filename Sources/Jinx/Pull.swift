@@ -56,12 +56,12 @@ extension SyncEngine {
         let changes = builder.call("\(descriptor.name)/changes", .changesArguments(accountId: accountId, sinceState: state, maxChanges: chunk))
         let created = builder.call(
           "\(descriptor.name)/get",
-          .getArguments(accountId: accountId, ids: [], properties: descriptor.properties),
+          descriptor.getArguments(accountId: accountId, ids: []),
           references: ["ids": changes.reference("/created")]
         )
         let updated = builder.call(
           "\(descriptor.name)/get",
-          .getArguments(accountId: accountId, ids: [], properties: descriptor.properties),
+          descriptor.getArguments(accountId: accountId, ids: []),
           references: ["ids": changes.reference("/updated")]
         )
         calls[descriptor.name] = (changes, created, updated)
@@ -160,7 +160,7 @@ extension SyncEngine {
 
     // First try: everything in one /get.
     var builder = RequestBuilder(using: capabilities)
-    let all = builder.call("\(type)/get", .getArguments(accountId: accountId, ids: nil, properties: descriptor.properties))
+    let all = builder.call("\(type)/get", descriptor.getArguments(accountId: accountId, ids: nil))
     let first = try await send(builder.request, session: session)
     if let invocation = first.response(to: all.callId), !invocation.isError {
       let get = try GetResponse(json: invocation.arguments)
@@ -177,7 +177,7 @@ extension SyncEngine {
         let query = builder.call("\(type)/query", .queryArguments(accountId: accountId, position: position, limit: chunk, calculateTotal: true))
         let get = builder.call(
           "\(type)/get",
-          .getArguments(accountId: accountId, ids: [], properties: descriptor.properties),
+          descriptor.getArguments(accountId: accountId, ids: []),
           references: ["ids": query.reference("/ids")]
         )
         let response = try await send(builder.request, session: session)

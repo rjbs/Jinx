@@ -1,5 +1,6 @@
 import JinxJSON
 import JinxPatch
+import JinxWire
 
 /// What the engine needs to know about a JMAP data type in order to sync
 /// it.  Standard types ship with descriptors in JinxTypes; an app
@@ -37,6 +38,10 @@ public struct TypeDescriptor: Sendable {
   public var clientIdentity: ClientIdentity?
   /// Properties that hold blob ids, for blob invalidation.
   public var blobProperties: [String]
+  /// Extra arguments merged into every `/get` for the type, for types
+  /// whose `/get` takes more than `ids` and `properties`, such as
+  /// Email's `bodyProperties` and `fetchHTMLBodyValues`.
+  public var getArguments: [String: JSONValue]
   public var mayPatch: MayPatch
 
   public init(
@@ -47,6 +52,7 @@ public struct TypeDescriptor: Sendable {
     ownedProperties: Set<String>? = nil,
     clientIdentity: ClientIdentity? = nil,
     blobProperties: [String] = [],
+    getArguments: [String: JSONValue] = [:],
     mayPatch: @escaping MayPatch = patchAnywhere
   ) {
     self.name = name
@@ -56,7 +62,18 @@ public struct TypeDescriptor: Sendable {
     self.ownedProperties = ownedProperties
     self.clientIdentity = clientIdentity
     self.blobProperties = blobProperties
+    self.getArguments = getArguments
     self.mayPatch = mayPatch
+  }
+
+  /// The arguments for a `/get` of `ids`, with the type's property list
+  /// and extra arguments applied.
+  public func getArguments(accountId: String, ids: [String]?) -> JSONValue {
+    var args = JSONValue.getArguments(accountId: accountId, ids: ids, properties: properties)
+    for (key, value) in getArguments where key != "accountId" && key != "ids" {
+      args[key] = value
+    }
+    return args
   }
 }
 
