@@ -1,0 +1,103 @@
+import JinxJSON
+import JinxPatch
+
+/// What the engine needs to know about a JMAP data type in order to sync
+/// it.  Standard types ship with descriptors in JinxTypes; an app
+/// declares its own types with the `@JMAPObject` macro or by hand.
+public struct TypeDescriptor: Sendable {
+  /// A property whose value the client chooses at creation and which
+  /// the server keeps unique, such as a Task's `uid`.  It makes creates
+  /// idempotent: a create whose response was lost can be matched to the
+  /// object the server made.
+  public struct ClientIdentity: Sendable, Hashable {
+    public var property: String
+    /// The `/query` filter condition that finds an object by this
+    /// property, as a filter object with one placeholder value.
+    /// Default: `{ property: value }`.
+    public var filterProperty: String
+
+    public init(property: String, filterProperty: String? = nil) {
+      self.property = property
+      self.filterProperty = filterProperty ?? property
+    }
+  }
+
+  /// The JMAP type name, as in `Email` or `Track`.
+  public var name: String
+  /// The capability URN the type's methods require in `using`.
+  public var capability: String
+  /// Types this one references and therefore syncs after.
+  public var dependsOn: [String]
+  /// The properties to fetch, or `nil` for all of them.
+  public var properties: [String]?
+  /// Properties a replacement encoding may change.  `nil` means the
+  /// app owns every property, which is right for a type the app
+  /// defined and wrong for a shared one like Task.
+  public var ownedProperties: Set<String>?
+  public var clientIdentity: ClientIdentity?
+  /// Properties that hold blob ids, for blob invalidation.
+  public var blobProperties: [String]
+  public var mayPatch: MayPatch
+
+  public init(
+    name: String,
+    capability: String,
+    dependsOn: [String] = [],
+    properties: [String]? = nil,
+    ownedProperties: Set<String>? = nil,
+    clientIdentity: ClientIdentity? = nil,
+    blobProperties: [String] = [],
+    mayPatch: @escaping MayPatch = patchAnywhere
+  ) {
+    self.name = name
+    self.capability = capability
+    self.dependsOn = dependsOn
+    self.properties = properties
+    self.ownedProperties = ownedProperties
+    self.clientIdentity = clientIdentity
+    self.blobProperties = blobProperties
+    self.mayPatch = mayPatch
+  }
+}
+
+extension [TypeDescriptor] {
+  /// The descriptors in an order where every type follows the types it
+  /// depends on, and otherwise in the order given.
+  public func inDependencyOrder() throws(SyncError) -> [TypeDescriptor] {
+    let byName = Dictionary(map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
+    var ordered: [TypeDescriptor] = []
+    var visiting: Set<String> = []
+    var done: Set<String> = []
+
+    func visit(_ name: String) throws(SyncError) {
+      if done.contains(name) { return }
+      guard let descriptor = byName[name] else { throw .unknownType(name) }
+      guard visiting.insert(name).inserted else { throw .dependencyCycle(name) }
+      for dependency in descriptor.dependsOn {
+        try visit(dependency)
+      }
+      visiting.remove(name)
+      done.insert(name)
+      ordered.append(descriptor)
+    }
+
+    for descriptor in self {
+      try visit(descriptor.name)
+    }
+    return ordered
+  }
+}
+
+public enum SyncError: Error, Sendable {
+  case unknownType(String)
+  case dependencyCycle(String)
+  case noSuchObject(String)
+  case objectIsBeingDestroyed(String)
+  /// A write referenced a pending create of another type; see the plan.
+  case crossTypeCreationReference(String)
+  case notConnected
+  /// The operation failed in a way worth retrying later.
+  case retryable(String)
+  /// The operation failed in a way that will not get better by itself.
+  case permanent(String)
+}
