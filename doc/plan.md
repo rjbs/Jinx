@@ -206,6 +206,15 @@ bulk operation such as NerfJournal's sweep becomes one log batch.
 Creates return a local handle immediately; the JMAP id arrives through
 the change stream when the push succeeds.
 
+Writes live in Jinx rather than in a separate layer, decided 2026-10-17.
+Optimistic overlay needs the sync layer to know what is pending, so a
+write path outside it cannot work.  What the mail document wanted from
+its read-only split survives in two forms: mail verbs such as move, flag
+and archive are a thin module of named functions over this API, which is
+the small auditable thing; and a read-only handle type exposes reads and
+the change stream with no write methods, so an experiment that only
+reads is checked by the compiler rather than by convention.
+
 **Errors** are classified per item after fanning any method-level error
 out to every item in the call.  Retryable (`serverFail`,
 `serverUnavailable`, `stateMismatch`, `rateLimit`, transport): keep the
@@ -359,8 +368,6 @@ Each phase ends with something a consumer can use.
 
 ## Decisions needed
 
-- [ ] Whether writes belong in Jinx (this plan) or the mail document's
-      read-only split is preserved literally.
 - [ ] Whether the `SyncStore` protocol is public from the start or an
       implementation detail until NerfJournal needs it.
 - [ ] Whether `#creationId` references across types in one request are
