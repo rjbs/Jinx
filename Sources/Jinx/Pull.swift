@@ -18,12 +18,25 @@ extension SyncEngine {
     }
     var needFull: [TypeDescriptor] = []
     var incremental: [TypeDescriptor] = []
+    var windowed: [TypeDescriptor] = []
     for descriptor in orderedTypes {
-      if states[descriptor.name] ?? nil == nil { needFull.append(descriptor) } else { incremental.append(descriptor) }
+      if descriptor.mode == .windowed {
+        windowed.append(descriptor)
+      } else if states[descriptor.name] ?? nil == nil {
+        needFull.append(descriptor)
+      } else {
+        incremental.append(descriptor)
+      }
     }
-    let resyncs = try await pullChanges(incremental, session: session)
+    let (resyncs, moved) = try await pullChanges(incremental, session: session)
     for descriptor in needFull + resyncs {
       try await fullFetch(descriptor, session: session)
+    }
+    try await refreshFullTypeSubscriptions(moved: moved.union((needFull + resyncs).map(\.name)), session: session)
+    let windowedResyncs = try await pullWindowed(windowed, session: session)
+    if !windowedResyncs.isEmpty {
+      for descriptor in windowedResyncs { try await resyncWindowed(descriptor) }
+      _ = try await pullWindowed(windowedResyncs, session: session)
     }
     status.lastPull = Date()
   }
@@ -34,10 +47,12 @@ extension SyncEngine {
   }
 
   /// Runs `/changes` rounds for the given types until none has more.
-  /// Returns the types that need a full fetch instead.
-  private func pullChanges(_ types: [TypeDescriptor], session: Session) async throws -> [TypeDescriptor] {
+  /// Returns the types that need a full fetch instead, and the types
+  /// whose state moved.
+  private func pullChanges(_ types: [TypeDescriptor], session: Session) async throws -> ([TypeDescriptor], Set<String>) {
     var remaining = types
     var needFull: [TypeDescriptor] = []
+    var moved: Set<String> = []
     var staleRounds = 0
     let accountId = accountId
     let chunk = fetchChunk
@@ -81,10 +96,11 @@ extension SyncEngine {
       let descriptors = descriptors
       let processId = configuration.processId
       let callsNow = calls
-      let result = try await commit({ tx, changeSet -> (done: [String], stale: [String], resync: [String], failed: String?) in
+      let result = try await commit({ tx, changeSet -> (done: [String], stale: [String], resync: [String], moved: [String], failed: String?) in
         var done: [String] = []
         var stale: [String] = []
         var resync: [String] = []
+        var movedNow: [String] = []
         var failed: String?
         for (type, call) in callsNow {
           let descriptor = descriptors[type]!
@@ -123,15 +139,17 @@ extension SyncEngine {
             try Self.applyDestroyed(id, type: type, accountId: accountId, in: tx, changeSet: &changeSet)
           }
           try tx.setState(changes.newState, accountId: accountId, type: type)
+          if changes.oldState != changes.newState { movedNow.append(type) }
           if !changes.hasMoreChanges { done.append(type) }
         }
-        return (done, stale, resync, failed)
+        return (done, stale, resync, movedNow, failed)
       }, source: .pull)
 
       if let failed = result.failed {
         status.lastFailure = failed
         throw SyncError.retryable(failed)
       }
+      moved.formUnion(result.moved)
       pullNeeded.subtract(result.done)
       remaining.removeAll { result.done.contains($0.name) || result.resync.contains($0.name) }
       needFull += result.resync.compactMap { descriptors[$0] }
@@ -140,7 +158,7 @@ extension SyncEngine {
         if staleRounds > 5 { throw SyncError.retryable("state kept moving during pull") }
       }
     }
-    return needFull
+    return (needFull, moved)
   }
 
   /// Fetches every object of a type: the initial sync, and the resync
@@ -219,7 +237,7 @@ extension SyncEngine {
   }
 
   /// Commits one chunk of a full fetch.
-  private func applyChunk(_ list: [JSONValue], descriptor: TypeDescriptor) async throws {
+  func applyChunk(_ list: [JSONValue], descriptor: TypeDescriptor) async throws {
     let accountId = accountId
     let processId = configuration.processId
     try await commit({ tx, changeSet in
@@ -229,7 +247,7 @@ extension SyncEngine {
     }, source: .pull)
   }
 
-  private func send(_ request: Request, session: Session) async throws -> Response {
+  func send(_ request: Request, session: Session) async throws -> Response {
     do {
       return try await transport.send(request, to: session.apiUrl)
     } catch {

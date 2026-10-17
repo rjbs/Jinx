@@ -78,6 +78,10 @@ public final class ScriptedServer: JMAPTransport, Sendable {
     var nextBlob = 1
     var sessionState = 1
     var pushSubscribers: [AsyncThrowingStream<ServerSentEvent, any Error>.Continuation] = []
+    /// Full result lists of queries answered under canCalculateChanges,
+    /// keyed by account, type, filter, sort and state, so
+    /// /queryChanges can diff against what was said before.
+    var querySnapshots: [String: [String]] = [:]
   }
 
   public let accountId: String

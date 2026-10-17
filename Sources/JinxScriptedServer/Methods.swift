@@ -60,7 +60,7 @@ extension ScriptedServer.State {
     case "changes": return changes(account, type, args, limits: limits)
     case "set": return set(account, type, args, createdIds: &createdIds, limits: limits)
     case "query": return query(account, type, args)
-    case "queryChanges": return error(MethodError.cannotCalculateChanges)
+    case "queryChanges": return queryChanges(account, type, args)
     default: return error(MethodError.unknownMethod)
     }
   }
@@ -264,10 +264,9 @@ extension ScriptedServer.State {
 
   // MARK: query
 
-  private func query(_ account: String, _ type: String, _ args: JSONValue) -> (name: String, arguments: JSONValue) {
-    let data = types[account]?[type] ?? ScriptedServer.TypeData()
-    var matching = data.objects.filter { Self.matches($0.value.value, args["filter"]) }.map { ($0.key, $0.value) }
-    let sort = args["sort"]?.arrayValue ?? []
+  /// Every id matching a filter, in sort order.
+  private func fullQuery(_ data: ScriptedServer.TypeData, filter: JSONValue?, sort: [JSONValue]) -> [String] {
+    var matching = data.objects.filter { Self.matches($0.value.value, filter) }.map { ($0.key, $0.value) }
     matching.sort { a, b in
       for comparator in sort {
         guard let property = comparator["property"]?.stringValue else { continue }
@@ -280,7 +279,20 @@ extension ScriptedServer.State {
       }
       return a.0 < b.0
     }
-    let ids = matching.map(\.0)
+    return matching.map(\.0)
+  }
+
+  private func snapshotKey(_ account: String, _ type: String, filter: JSONValue?, sort: [JSONValue], state: Int64) -> String {
+    "\(account)|\(type)|\(filter?.description ?? "")|\(JSONValue.array(sort).description)|\(state)"
+  }
+
+  private mutating func query(_ account: String, _ type: String, _ args: JSONValue) -> (name: String, arguments: JSONValue) {
+    let data = types[account]?[type] ?? ScriptedServer.TypeData()
+    let sort = args["sort"]?.arrayValue ?? []
+    let ids = fullQuery(data, filter: args["filter"], sort: sort)
+    if data.options.canCalculateChanges {
+      querySnapshots[snapshotKey(account, type, filter: args["filter"], sort: sort, state: data.state)] = ids
+    }
     var position = args["position"]?.intValue ?? 0
     if let anchor = args["anchor"]?.stringValue {
       guard let index = ids.firstIndex(of: anchor) else { return error(MethodError.anchorNotFound) }
@@ -299,6 +311,45 @@ extension ScriptedServer.State {
     if args["calculateTotal"]?.boolValue == true { response["total"] = .number(Double(ids.count)) }
     if let limit { response["limit"] = .number(Double(limit)) }
     return ("\(type)/query", response)
+  }
+
+  private mutating func queryChanges(_ account: String, _ type: String, _ args: JSONValue) -> (name: String, arguments: JSONValue) {
+    let data = types[account]?[type] ?? ScriptedServer.TypeData()
+    let sort = args["sort"]?.arrayValue ?? []
+    guard data.options.canCalculateChanges,
+          let sinceText = args["sinceQueryState"]?.stringValue, let since = Int64(sinceText),
+          let old = querySnapshots[snapshotKey(account, type, filter: args["filter"], sort: sort, state: since)]
+    else {
+      return error(MethodError.cannotCalculateChanges)
+    }
+    let new = fullQuery(data, filter: args["filter"], sort: sort)
+    querySnapshots[snapshotKey(account, type, filter: args["filter"], sort: sort, state: data.state)] = new
+
+    // Ids kept in place are an increasing subsequence of the old order;
+    // everything else is reported removed and, if still present, added
+    // at its new index.  Applying removals then insertions in index
+    // order to the old list yields the new one. -- claude, 2026-10-17
+    let oldIndex = Dictionary(old.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+    var kept: Set<String> = []
+    var lastOld = -1
+    for id in new {
+      guard let index = oldIndex[id], index > lastOld else { continue }
+      kept.insert(id)
+      lastOld = index
+    }
+    let removed = old.filter { !kept.contains($0) }
+    let added: [JSONValue] = new.enumerated().compactMap { index, id in
+      kept.contains(id) ? nil : ["id": .string(id), "index": .number(Double(index))]
+    }
+    var response: JSONValue = [
+      "accountId": .string(account),
+      "oldQueryState": .string(sinceText),
+      "newQueryState": .string(String(data.state)),
+      "removed": .array(removed.map(JSONValue.string)),
+      "added": .array(added),
+    ]
+    if args["calculateTotal"]?.boolValue == true { response["total"] = .number(Double(new.count)) }
+    return ("\(type)/queryChanges", response)
   }
 
   /// The filter language: an object of property to required value, or

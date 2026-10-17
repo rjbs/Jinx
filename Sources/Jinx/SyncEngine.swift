@@ -93,6 +93,10 @@ public actor SyncEngine<Store: SyncStore> {
   var reconcileBeforePush = false
   /// Per-type cap on `/set` batch size, lowered after `requestTooLarge`.
   var setChunk: [String: Int] = [:]
+  /// Types whose subscriptions must be re-queried because this process
+  /// changed their objects; a push advances the stored state, so the
+  /// next pass would otherwise see no movement and skip the query.
+  var subscriptionsDirty: Set<String> = []
   private var subscribers: [UUID: AsyncStream<ChangeSet>.Continuation] = [:]
   var journalCursor: Int64 = 0
   var journalCursorSet = false

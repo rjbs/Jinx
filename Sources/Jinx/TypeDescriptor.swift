@@ -6,6 +6,13 @@ import JinxWire
 /// it.  Standard types ship with descriptors in JinxTypes; an app
 /// declares its own types with the `@JMAPObject` macro or by hand.
 public struct TypeDescriptor: Sendable {
+  /// Whether every object of the type is held locally, or only what
+  /// subscriptions, pins, pending changes and references retain.
+  public enum Mode: Sendable, Hashable {
+    case full
+    case windowed
+  }
+
   /// A property whose value the client chooses at creation and which
   /// the server keeps unique, such as a Task's `uid`.  It makes creates
   /// idempotent: a create whose response was lost can be matched to the
@@ -27,8 +34,14 @@ public struct TypeDescriptor: Sendable {
   public var name: String
   /// The capability URN the type's methods require in `using`.
   public var capability: String
+  public var mode: Mode
   /// Types this one references and therefore syncs after.
   public var dependsOn: [String]
+  /// Properties holding ids of other types, property name to type
+  /// name.  A property may hold one id, an array of ids, or an object
+  /// keyed by id.  A retained object keeps the objects it references
+  /// held, one level deep, and a pass fetches them if missing.
+  public var references: [String: String]
   /// The properties to fetch, or `nil` for all of them.
   public var properties: [String]?
   /// Properties a replacement encoding may change.  `nil` means the
@@ -47,7 +60,9 @@ public struct TypeDescriptor: Sendable {
   public init(
     name: String,
     capability: String,
+    mode: Mode = .full,
     dependsOn: [String] = [],
+    references: [String: String] = [:],
     properties: [String]? = nil,
     ownedProperties: Set<String>? = nil,
     clientIdentity: ClientIdentity? = nil,
@@ -57,7 +72,9 @@ public struct TypeDescriptor: Sendable {
   ) {
     self.name = name
     self.capability = capability
+    self.mode = mode
     self.dependsOn = dependsOn
+    self.references = references
     self.properties = properties
     self.ownedProperties = ownedProperties
     self.clientIdentity = clientIdentity
@@ -117,4 +134,25 @@ public enum SyncError: Error, Sendable {
   case retryable(String)
   /// The operation failed in a way that will not get better by itself.
   case permanent(String)
+}
+
+extension TypeDescriptor {
+  /// The ids of other types an object's value references, by type.
+  public func referencedIds(in value: JSONValue) -> [String: Set<String>] {
+    var result: [String: Set<String>] = [:]
+    for (property, type) in references {
+      guard let held = value[property] else { continue }
+      switch held {
+      case .string(let id):
+        result[type, default: []].insert(id)
+      case .array(let ids):
+        result[type, default: []].formUnion(ids.compactMap(\.stringValue))
+      case .object(let members):
+        result[type, default: []].formUnion(members.keys)
+      default:
+        break
+      }
+    }
+    return result
+  }
 }

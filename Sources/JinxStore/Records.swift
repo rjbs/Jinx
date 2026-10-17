@@ -144,6 +144,8 @@ public struct ChangeSet: Sendable, Hashable, Codable {
   public var types: [String: TypeChanges] = [:]
   /// Objects whose pending change failed permanently and was reverted.
   public var failed: [LocalKey: SetError] = [:]
+  /// Subscriptions whose id list or total changed.
+  public var subscriptions: [String] = []
 
   public init(accountId: String, source: Source) {
     self.accountId = accountId
@@ -151,7 +153,7 @@ public struct ChangeSet: Sendable, Hashable, Codable {
   }
 
   public var isEmpty: Bool {
-    types.values.allSatisfy(\.isEmpty) && failed.isEmpty
+    types.values.allSatisfy(\.isEmpty) && failed.isEmpty && subscriptions.isEmpty
   }
 
   public mutating func noteCreated(_ key: LocalKey, type: String) {

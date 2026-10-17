@@ -184,6 +184,7 @@ extension SyncEngine {
     var adoptByIdentity: [LocalKey: AdoptRequest] = [:]
     var pullNeeded: Set<String> = []
     var setChunk: [String: Int] = [:]
+    var dirtyTypes: Set<String> = []
     var failure: String?
   }
 
@@ -222,6 +223,9 @@ extension SyncEngine {
         }
 
         let set = try SetResponse(json: invocation.arguments)
+        if !set.created.isEmpty || !set.updated.isEmpty || !set.destroyed.isEmpty {
+          outcome.dirtyTypes.insert(batch.type)
+        }
         for item in batch.items {
           let key = item.object.key
           switch item.entry.operation {
@@ -317,6 +321,7 @@ extension SyncEngine {
     }, source: .push)
 
     pullNeeded.formUnion(outcome.pullNeeded)
+    subscriptionsDirty.formUnion(outcome.dirtyTypes)
     for (type, chunk) in outcome.setChunk { setChunk[type] = chunk }
     if let failure = outcome.failure { status.lastFailure = failure }
     return outcome

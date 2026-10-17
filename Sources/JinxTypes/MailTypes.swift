@@ -15,6 +15,7 @@ public enum MailTypes {
   public static let mailbox = TypeDescriptor(
     name: "Mailbox",
     capability: capability,
+    references: ["parentId": "Mailbox"],
     ownedProperties: ["name", "parentId", "role", "sortOrder", "isSubscribed"]
   )
 
@@ -25,6 +26,8 @@ public enum MailTypes {
   public static let thread = TypeDescriptor(
     name: "Thread",
     capability: capability,
+    mode: .windowed,
+    references: ["emailIds": "Email"],
     ownedProperties: []
   )
 
@@ -57,7 +60,9 @@ public enum MailTypes {
     return TypeDescriptor(
       name: "Email",
       capability: capability,
+      mode: .windowed,
       dependsOn: ["Mailbox", "Thread"],
+      references: ["threadId": "Thread", "mailboxIds": "Mailbox"],
       properties: properties,
       ownedProperties: ["keywords", "mailboxIds"],
       blobProperties: ["blobId"],
