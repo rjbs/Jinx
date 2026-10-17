@@ -29,7 +29,7 @@ Sources:
 | `/queryChanges` | Open question | Not planned | Server reports `canCalculateChanges` false |
 | Push | EventSource, polling fallback | Unspecified | EventSource, held by the app only; the CLI pushes once after a write |
 | Storage | Open; must persist across launches | Undecided; Application Support for files | Jinx's GRDB store in the app's own database file beside client-only tables; two processes (decided 2026-10-17) |
-| Platform floor | iOS and macOS 27 | iOS 27 | macOS 27 (raised from 14 on 2026-10-17); Swift 5 language mode |
+| Platform floor | iOS and macOS 27 | iOS 27 | macOS 27 (raised from 14 on 2026-10-17); moving to Swift 6 language mode with default MainActor isolation before adopting Jinx |
 | Observation | Created, updated, destroyed by type and id; async sequences | Unspecified | A "rows changed" signal; no SwiftUI types in the library |
 | Distinctive need | Coherent cross-type snapshots; raw HTML handed out unsanitized | A changed `blobId` invalidates cached audio; Track syncs before Playlist | Foreign properties preserved; idempotent creates by `uid`; per-row errors |
 

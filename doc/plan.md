@@ -389,8 +389,29 @@ Everything a consumer needs to declare a type should fit on one screen.
 
 Swift 6 language mode with strict concurrency.  The engine is an actor;
 store and transport calls are async; the change stream is consumed off
-the actor.  Jinx is consumable from Swift 5-mode code, which NerfJournal
-is.
+the actor.  Jinx is also consumable from Swift 5-mode code.
+
+Consumers will use Xcode 27's default-MainActor isolation, so Jinx is
+written to be called from MainActor-isolated code without forcing the
+caller elsewhere (decided with NerfJournal's agent, 2026-10-17):
+
+- Every public type that crosses the boundary is a `Sendable` value
+  type: change sets, read results, patches, encodings, descriptors.
+  `JSONValue` is the only JSON representation on the public surface;
+  `[String: Any]` never appears there.
+- Public API that runs off the main actor is marked `nonisolated`
+  explicitly, so a MainActor-default module reads it correctly.
+- The change stream is an `AsyncSequence` of `Sendable` elements, meant
+  for `for await` from a MainActor task.  There is no Combine, and no
+  NotificationCenter as a primary API.
+- The engine and the GRDB store are never MainActor-isolated; an app
+  holds one engine per process and injects it into its stores.
+- Closure-form updates take a `@Sendable` closure from `JSONValue` to
+  `JSONValue`, never one that mutates captured state.
+- No API asks the app for a class type, so no consumer needs
+  `@unchecked Sendable`.
+- Migration registration is a synchronous call on the app's GRDB
+  migrator from its own setup code.
 
 The platform floor is iOS 27 and macOS 27, decided 2026-10-17.  RJBS is
 the whole user base, and NerfJournal is raising its own floor to match.
