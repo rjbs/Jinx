@@ -156,11 +156,11 @@ private func insert(
   second.noteDestroyed(LocalKey(3), type: "Thing")
 
   let seqs = try await store.write { [first, second] tx in
-    [try tx.appendJournal(first), try tx.appendJournal(second)]
+    [try tx.appendJournal(first, processId: "p1"), try tx.appendJournal(second, processId: "p2")]
   }
   #expect(seqs == [1, 2])
   #expect(try await store.read { tx in try tx.latestJournalSeq() } == 2)
-  #expect(try await store.read { tx in try tx.journal(after: 0) } == [JournalEntry(seq: 1, changeSet: first), JournalEntry(seq: 2, changeSet: second)])
+  #expect(try await store.read { tx in try tx.journal(after: 0) } == [JournalEntry(seq: 1, processId: "p1", changeSet: first), JournalEntry(seq: 2, processId: "p2", changeSet: second)])
   #expect(try await store.read { tx in try tx.journal(after: 1) }.map(\.seq) == [2])
 }
 
@@ -174,7 +174,7 @@ private func insert(
     try tx.setPending(key: mine.key, operation: .create)
     try tx.setState("s", accountId: account, type: "Thing")
     try tx.setState("s", accountId: "other", type: "Thing")
-    try tx.appendJournal(ChangeSet(accountId: account, source: .local))
+    try tx.appendJournal(ChangeSet(accountId: account, source: .local), processId: "p")
     try tx.wipe(accountId: account)
   }
   #expect(try await store.read { tx in try tx.object(key: mine.key) } == nil)

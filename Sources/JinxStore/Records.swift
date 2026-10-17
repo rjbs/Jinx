@@ -200,10 +200,13 @@ extension SetError: Codable {
 /// A journal row: one committed change set and its sequence number.
 public struct JournalEntry: Sendable, Hashable {
   public var seq: Int64
+  /// The process that committed it, so another process can skip its own.
+  public var processId: String
   public var changeSet: ChangeSet
 
-  public init(seq: Int64, changeSet: ChangeSet) {
+  public init(seq: Int64, processId: String, changeSet: ChangeSet) {
     self.seq = seq
+    self.processId = processId
     self.changeSet = changeSet
   }
 }

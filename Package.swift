@@ -31,7 +31,8 @@ let package = Package(
         .product(name: "GRDB", package: "GRDB.swift"),
       ]
     ),
-    .target(name: "Jinx", dependencies: ["JinxJSON", "JinxPatch", "JinxWire", "JinxStore"]),
+    .systemLibrary(name: "Cnotify"),
+    .target(name: "Jinx", dependencies: ["Cnotify", "JinxJSON", "JinxPatch", "JinxWire", "JinxStore"]),
     .target(name: "JinxTypes", dependencies: ["Jinx"]),
     .target(name: "JinxScriptedServer", dependencies: ["JinxJSON", "JinxPatch", "JinxWire"]),
 

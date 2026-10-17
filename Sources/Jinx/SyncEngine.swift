@@ -14,19 +14,24 @@ public struct SyncConfiguration: Sendable {
   public var claimStaleAfter: TimeInterval
   /// Upper bound on objects fetched per `/get`, below the server's.
   public var fetchChunk: Int?
+  /// A Darwin notification name shared by every process on this store,
+  /// so each learns of the others' commits.  `nil` disables it.
+  public var signalName: String?
 
   public init(
     accountId: String,
     types: [TypeDescriptor],
     processId: String = UUID().uuidString,
     claimStaleAfter: TimeInterval = 120,
-    fetchChunk: Int? = nil
+    fetchChunk: Int? = nil,
+    signalName: String? = nil
   ) {
     self.accountId = accountId
     self.types = types
     self.processId = processId
     self.claimStaleAfter = claimStaleAfter
     self.fetchChunk = fetchChunk
+    self.signalName = signalName
   }
 }
 
@@ -89,7 +94,11 @@ public actor SyncEngine<Store: SyncStore> {
   /// Per-type cap on `/set` batch size, lowered after `requestTooLarge`.
   var setChunk: [String: Int] = [:]
   private var subscribers: [UUID: AsyncStream<ChangeSet>.Continuation] = [:]
-  private var journalCursor: Int64 = 0
+  var journalCursor: Int64 = 0
+  var journalCursorSet = false
+  var wake: AsyncStream<Void>.Continuation?
+  var syncRequested = false
+  var tailRequested = false
 
   public init(configuration: SyncConfiguration, transport: any JMAPTransport, store: Store) throws(SyncError) {
     self.configuration = configuration
@@ -186,15 +195,20 @@ public actor SyncEngine<Store: SyncStore> {
     source: ChangeSet.Source
   ) async throws -> T {
     let accountId = accountId
+    let processId = configuration.processId
     let (result, changeSet) = try await store.write { tx -> (T, ChangeSet) in
       var changeSet = ChangeSet(accountId: accountId, source: source)
       let result = try body(tx, &changeSet)
       if !changeSet.isEmpty {
-        try tx.appendJournal(changeSet)
+        try tx.appendJournal(changeSet, processId: processId)
       }
       return (result, changeSet)
     }
     emit(changeSet)
+    if !changeSet.isEmpty {
+      if let name = configuration.signalName { DarwinNotification.post(name) }
+      if source == .local { requestSync() }
+    }
     return result
   }
 

@@ -61,7 +61,7 @@ public protocol SyncTransaction {
   // MARK: Journal
 
   @discardableResult
-  func appendJournal(_ changeSet: ChangeSet) throws -> Int64
+  func appendJournal(_ changeSet: ChangeSet, processId: String) throws -> Int64
   func journal(after seq: Int64) throws -> [JournalEntry]
   func latestJournalSeq() throws -> Int64
 

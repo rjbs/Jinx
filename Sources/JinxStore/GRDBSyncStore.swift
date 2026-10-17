@@ -74,6 +74,7 @@ public struct GRDBSyncStore: SyncStore {
         CREATE TABLE jinx_journal (
           seq        INTEGER PRIMARY KEY AUTOINCREMENT,
           account    TEXT NOT NULL,
+          process    TEXT NOT NULL,
           created_at REAL NOT NULL,
           change_set TEXT NOT NULL
         );
@@ -302,19 +303,20 @@ public struct GRDBTransaction: SyncTransaction {
   // MARK: Journal
 
   @discardableResult
-  public func appendJournal(_ changeSet: ChangeSet) throws -> Int64 {
+  public func appendJournal(_ changeSet: ChangeSet, processId: String) throws -> Int64 {
     let encoded = String(decoding: try JSONEncoder().encode(changeSet), as: UTF8.self)
     try db.execute(
-      sql: "INSERT INTO jinx_journal (account, created_at, change_set) VALUES (?, ?, ?)",
-      arguments: [changeSet.accountId, Date().timeIntervalSince1970, encoded]
+      sql: "INSERT INTO jinx_journal (account, process, created_at, change_set) VALUES (?, ?, ?, ?)",
+      arguments: [changeSet.accountId, processId, Date().timeIntervalSince1970, encoded]
     )
     return db.lastInsertedRowID
   }
 
   public func journal(after seq: Int64) throws -> [JournalEntry] {
-    try Row.fetchAll(db, sql: "SELECT seq, change_set FROM jinx_journal WHERE seq > ? ORDER BY seq", arguments: [seq]).map { row in
+    try Row.fetchAll(db, sql: "SELECT seq, process, change_set FROM jinx_journal WHERE seq > ? ORDER BY seq", arguments: [seq]).map { row in
       JournalEntry(
         seq: row["seq"],
+        processId: row["process"],
         changeSet: try JSONDecoder().decode(ChangeSet.self, from: Data((row["change_set"] as String).utf8))
       )
     }
