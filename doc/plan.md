@@ -137,7 +137,9 @@ type's changes from one pull pass in a single store transaction, so a
 reader sees the state before the pass or after it, never between.  A
 dangling reference, an id the store does not hold, is allowed at the
 data level and is not an error; the next pass or a query refresh
-resolves it.
+resolves it.  Initial sync of a full type is the one exception to
+the single-transaction rule, by design: it commits per chunk and says
+so through status.
 
 ## The sync loop
 
