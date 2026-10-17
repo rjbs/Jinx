@@ -82,10 +82,13 @@ Each type is synced in one of two modes.
 
 **Full.**  Every object of the type is held locally.  Initial sync pages
 through `Foo/query` with no filter and fetches in chunks of
-`maxObjectsInGet`, reporting progress as (fetched, total); when the
-server allows it, `Foo/get` with `ids: null` is a single step.  After
-that, `Foo/changes` keeps the set current.  Juke's Track and Playlist and
-NerfJournal's Task are full.
+`maxObjectsInGet`; when the server allows it, `Foo/get` with `ids: null`
+is a single step.  Each chunk commits on its own and is reported on the
+change stream, and the engine.s status marks the type as partial, with
+a fetched-of-total count, until the last chunk lands, so an app can
+draw what it has rather than wait for 45k tracks.  After that,
+`Foo/changes` keeps the set current.  Juke.s Track and Playlist and
+NerfJournal.s Task are full.
 
 **Windowed.**  The type is too large to hold.  What is held is decided by
 **subscriptions**, of two kinds:
@@ -98,7 +101,10 @@ NerfJournal's Task are full.
 - A **pin**: a set of ids the app wants held regardless of any query.
 
 An object is **retained** while any live subscription references it, it
-is pinned, or it has a pending entry.  Everything else is evictable, and
+is pinned, it has a pending entry, or a retained object references it
+through a declared id property.  That last rule is how a held Email
+keeps its Thread: the engine fetches referenced objects in the same pass
+as their referrer, and lets them go when nothing refers to them.  Everything else is evictable, and
 a per-type policy (least recently read, under a count cap) decides when.
 `Foo/changes` on a windowed type is applied as: updated ids that are held
 are refetched, destroyed ids are removed, and created ids are ignored
@@ -106,7 +112,10 @@ because the query subscriptions will surface them.  A full mirror is the
 degenerate case of one unbounded query subscription with no eviction,
 and the engine treats it that way internally.
 
-Mail's Mailbox and Thread are full; Email is windowed.
+Mail.s Mailbox is full; Email and Thread are windowed, since a large
+account has nearly as many Threads as Emails.  An app can begin work
+after the first pass: the mailbox list is complete, and the inbox is as
+complete as its first query subscription.
 
 ### Partial fetch
 
