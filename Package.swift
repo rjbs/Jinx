@@ -26,6 +26,7 @@ let package = Package(
       name: "JinxStore",
       dependencies: [
         "JinxJSON",
+        "JinxWire",
         .product(name: "GRDB", package: "GRDB.swift"),
       ]
     ),
