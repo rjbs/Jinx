@@ -84,11 +84,11 @@ Each type is synced in one of two modes.
 through `Foo/query` with no filter and fetches in chunks of
 `maxObjectsInGet`; when the server allows it, `Foo/get` with `ids: null`
 is a single step.  Each chunk commits on its own and is reported on the
-change stream, and the engine.s status marks the type as partial, with
+change stream, and the engine's status marks the type as partial, with
 a fetched-of-total count, until the last chunk lands, so an app can
 draw what it has rather than wait for 45k tracks.  After that,
-`Foo/changes` keeps the set current.  Juke.s Track and Playlist and
-NerfJournal.s Task are full.
+`Foo/changes` keeps the set current.  Juke's Track and Playlist and
+NerfJournal's Task are full.
 
 **Windowed.**  The type is too large to hold.  What is held is decided by
 **subscriptions**, of two kinds:
@@ -112,7 +112,7 @@ because the query subscriptions will surface them.  A full mirror is the
 degenerate case of one unbounded query subscription with no eviction,
 and the engine treats it that way internally.
 
-Mail.s Mailbox is full; Email and Thread are windowed, since a large
+Mail's Mailbox is full; Email and Thread are windowed, since a large
 account has nearly as many Threads as Emails.  An app can begin work
 after the first pass: the mailbox list is complete, and the inbox is as
 complete as its first query subscription.
@@ -167,7 +167,7 @@ that already has the client's changes.
    Mailbox that is itself pending) are represented from the start but
    not sent until a later phase, decided 2026-10-17.  The creation id
    is the local id of a pending create, so it can appear inside another
-   object.s properties and be rewritten when the real id arrives.  What
+   object's properties and be rewritten when the real id arrives.  What
    is deferred is the engine work: ordering such creates across types
    in one request, and holding a dependent change back when the create
    it references fails or is retried.  Until then, a write that
@@ -292,7 +292,7 @@ definitions and their id lists, retention metadata, and the blob index.
 Handles are opaque to the engine, so an app can key by Int64 rowid and
 a nullable remote id, as NerfJournal does.  The protocol is public from
 the first release, decided 2026-10-17, since NerfJournal implements it
-in phase 2; its stability is part of the library.s contract.
+in phase 2; its stability is part of the library's contract.
 
 **`GRDBSyncStore`** is the implementation most apps will use.  It owns
 tables with a `jinx_` prefix, stores JSON as text, and registers its
