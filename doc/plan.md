@@ -37,9 +37,11 @@ above it.
               errors, HTTP transport, EventSource, blob transfer
 ```
 
-NerfJournal uses JinxWire, JinxPatch and the engine with its own
-`SyncStore`, because its local row shape is its own.  Juke and the mail
-experiments use the whole stack.
+All three consumers use the whole stack.  NerfJournal was going to
+implement `SyncStore` over its own todo table, but that would mean
+rewriting the GRDB store under different column names and owning the
+bugs; decided 2026-10-17, it uses Jinx's GRDB store instead, co-located
+in its own database file beside its client-only tables.
 
 ## The core model
 
@@ -306,15 +308,20 @@ and these responsibilities: objects (get, put, delete; snapshot, local
 value, fetch level, last error), the pending log (append, claim with a
 staleness timeout, release, delete), per-type state strings, subscription
 definitions and their id lists, retention metadata, and the blob index.
-Handles are opaque to the engine, so an app can key by Int64 rowid and
-a nullable remote id, as NerfJournal does.  The protocol is public from
-the first release, decided 2026-10-17, since NerfJournal implements it
-in phase 2; its stability is part of the library's contract.
+Handles are opaque to the engine.  The protocol is public from the
+first release, decided 2026-10-17; its stability is part of the
+library's contract, and no current consumer implements it.
 
-**`GRDBSyncStore`** is the implementation most apps will use.  It owns
-tables with a `jinx_` prefix, stores JSON as text, and registers its
-schema as a migration on a migrator the app supplies, so it can share
-the app's database file or have one of its own.  It is safe for two
+**`GRDBSyncStore`** is the implementation every current consumer uses.
+It owns tables with a `jinx_` prefix, stores JSON as text, and registers
+its schema as a migration on a migrator the app supplies, so it can
+share the app's database file or have one of its own.  Sharing a file
+is the recommended shape for an app with client-only data: its own
+tables and Jinx's commit in one transaction.  Every object row has a
+stable Int64 local key that never changes, with the JMAP id as a
+nullable column filled in when the server assigns it, so an app's own
+tables can reference an object from the moment it is created with no
+rewriting when the create succeeds; lookup by JMAP id is also available.  It is safe for two
 processes on one WAL-mode file: short transactions, claims rather than
 locks.  Apps may run read-only SQL against the `jinx_` tables, and that
 layout is documented and versioned.

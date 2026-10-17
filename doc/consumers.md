@@ -28,7 +28,7 @@ Sources:
 | Creates that reference other pending creates | Rare | None: playlists reference existing Tracks | None |
 | `/queryChanges` | Open question | Not planned | Server reports `canCalculateChanges` false |
 | Push | EventSource, polling fallback | Unspecified | EventSource, held by the app only; the CLI pushes once after a write |
-| Storage | Open; must persist across launches | Undecided; Application Support for files | GRDB, sharing a file with app tables, Int64 rowids, two processes |
+| Storage | Open; must persist across launches | Undecided; Application Support for files | Jinx's GRDB store in the app's own database file beside client-only tables; two processes (decided 2026-10-17) |
 | Platform floor | iOS and macOS 27 | iOS 27 | macOS 27 (raised from 14 on 2026-10-17); Swift 5 language mode |
 | Observation | Created, updated, destroyed by type and id; async sequences | Unspecified | A "rows changed" signal; no SwiftUI types in the library |
 | Distinctive need | Coherent cross-type snapshots; raw HTML handed out unsanitized | A changed `blobId` invalidates cached audio; Track syncs before Playlist | Foreign properties preserved; idempotent creates by `uid`; per-row errors |
@@ -63,10 +63,11 @@ client-chosen property.
 ## Where they pull against each other
 
 1. **Who owns the store.**  The mail document leaves it open.  Juke has
-   not decided.  NerfJournal owns its `todo` table and wants the engine
-   to run over a storage protocol.  The plan: the engine runs over a
-   `SyncStore` protocol, and Jinx ships a GRDB implementation that owns
-   its tables but lives in whichever database the app provides.
+   not decided.  NerfJournal planned to own its `todo` table and run the
+   engine over a storage protocol, but that meant rewriting the GRDB
+   store under other column names.  Decided 2026-10-17: Jinx's GRDB
+   store owns the JMAP data for every consumer, living in whichever
+   database file the app provides, beside the app's own tables.
 2. **Read-only versus writes.**  The mail document makes sync read-only
    and puts writes in an "actions" layer.  Optimistic overlay, which RJBS
    wants, only works if the sync layer knows about pending writes, and
@@ -82,7 +83,7 @@ client-chosen property.
    on macOS 14 and is being raised to 27 to match.  Decided 2026-10-17:
    Jinx requires iOS and macOS 27.
 5. **Identity.**  NerfJournal keys rows by Int64 rowid with a nullable
-   `remoteID`.  Jinx's own store keys by JMAP id, with a client-chosen
-   creation id standing in until the server assigns one.  The plan: the
-   `SyncStore` protocol speaks in opaque local handles, so either scheme
-   works behind it.
+   `remoteID`, so that client-only tables can reference a task before
+   the server has named it.  Jinx's GRDB store adopts that scheme for
+   everyone: a stable Int64 local key per object, the JMAP id as a
+   nullable column, lookup by either.
