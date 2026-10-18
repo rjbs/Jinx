@@ -248,3 +248,52 @@ private func insert(
   try await store.write { tx in try tx.wipe(accountId: account) }
   #expect(try await store.read { tx in try tx.pins(accountId: account, type: "Email") } == [])
 }
+
+@Test func blobRecordsRoundTripAndOrderByAccess() async throws {
+  let store = try makeStore()
+  let old = BlobRecord(accountId: account, blobId: "b1", totalLength: 100, ranges: [0..<100], isPinned: true, lastAccess: Date(timeIntervalSince1970: 10), contentType: "audio/mpeg")
+  let partial = BlobRecord(accountId: account, blobId: "b2", totalLength: 50, ranges: [0..<10, 20..<30], lastAccess: Date(timeIntervalSince1970: 20))
+  try await store.write { tx in
+    try tx.setBlob(partial)
+    try tx.setBlob(old)
+  }
+  #expect(try await store.read { tx in try tx.blob(accountId: account, blobId: "b1") } == old)
+  #expect(try await store.read { tx in try tx.blobs(accountId: account) }.map(\.blobId) == ["b1", "b2"])
+  var touched = old
+  touched.lastAccess = Date(timeIntervalSince1970: 30)
+  let touchedNow = touched
+  try await store.write { tx in try tx.setBlob(touchedNow) }
+  #expect(try await store.read { tx in try tx.blobs(accountId: account) }.map(\.blobId) == ["b2", "b1"])
+  try await store.write { tx in try tx.deleteBlob(accountId: account, blobId: "b2") }
+  #expect(try await store.read { tx in try tx.blob(accountId: account, blobId: "b2") } == nil)
+}
+
+private func assertRanges(
+  _ ranges: [Range<Int>],
+  adding added: Range<Int>,
+  gives expected: [Range<Int>],
+  sourceLocation: SourceLocation = #_sourceLocation
+) {
+  var record = BlobRecord(accountId: "a", blobId: "b", totalLength: 100, ranges: ranges)
+  record.add(added)
+  #expect(record.ranges == expected, sourceLocation: sourceLocation)
+}
+
+@Test func blobRangesMergeAndReportGaps() {
+  assertRanges([], adding: 0..<10, gives: [0..<10])
+  assertRanges([0..<10], adding: 10..<20, gives: [0..<20])
+  assertRanges([0..<10], adding: 5..<8, gives: [0..<10])
+  assertRanges([0..<10, 30..<40], adding: 8..<32, gives: [0..<40])
+  assertRanges([20..<30], adding: 0..<10, gives: [0..<10, 20..<30])
+
+  let record = BlobRecord(accountId: "a", blobId: "b", totalLength: 100, ranges: [0..<10, 20..<30])
+  #expect(record.covers(0..<10))
+  #expect(record.covers(22..<25))
+  #expect(!record.covers(5..<15))
+  #expect(record.missing(in: 0..<40) == [10..<20, 30..<40])
+  #expect(record.missing(in: 0..<10) == [])
+  #expect(record.missing(in: 50..<60) == [50..<60])
+  #expect(!record.isComplete)
+  #expect(record.bytesPresent == 20)
+  #expect(BlobRecord(accountId: "a", blobId: "b", totalLength: 100, ranges: [0..<100]).isComplete)
+}

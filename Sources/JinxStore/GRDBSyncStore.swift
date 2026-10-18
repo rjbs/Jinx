@@ -87,6 +87,17 @@ public struct GRDBSyncStore: SyncStore {
           PRIMARY KEY (account, type, id)
         );
 
+        CREATE TABLE jinx_blob (
+          account      TEXT NOT NULL,
+          blob_id      TEXT NOT NULL,
+          total_length INTEGER,
+          ranges       TEXT NOT NULL,
+          pinned       INTEGER NOT NULL DEFAULT 0,
+          last_access  REAL NOT NULL,
+          content_type TEXT,
+          PRIMARY KEY (account, blob_id)
+        );
+
         CREATE TABLE jinx_journal (
           seq        INTEGER PRIMARY KEY AUTOINCREMENT,
           account    TEXT NOT NULL,
@@ -401,9 +412,50 @@ public struct GRDBTransaction: SyncTransaction {
     Set(try String.fetchAll(db, sql: "SELECT id FROM jinx_object WHERE account = ? AND type = ? AND id IS NOT NULL", arguments: [accountId, type]))
   }
 
+  // MARK: Blobs
+
+  private static func blobRecord(_ row: Row) throws -> BlobRecord {
+    let pairs = try JSONDecoder().decode([[Int]].self, from: Data((row["ranges"] as String).utf8))
+    return BlobRecord(
+      accountId: row["account"],
+      blobId: row["blob_id"],
+      totalLength: row["total_length"],
+      ranges: pairs.map { $0[0]..<$0[1] },
+      isPinned: (row["pinned"] as Int) != 0,
+      lastAccess: Date(timeIntervalSince1970: row["last_access"]),
+      contentType: row["content_type"]
+    )
+  }
+
+  public func blob(accountId: String, blobId: String) throws -> BlobRecord? {
+    try Row.fetchOne(db, sql: "SELECT * FROM jinx_blob WHERE account = ? AND blob_id = ?", arguments: [accountId, blobId]).map(Self.blobRecord)
+  }
+
+  public func blobs(accountId: String) throws -> [BlobRecord] {
+    try Row.fetchAll(db, sql: "SELECT * FROM jinx_blob WHERE account = ? ORDER BY last_access", arguments: [accountId]).map(Self.blobRecord)
+  }
+
+  public func setBlob(_ record: BlobRecord) throws {
+    let ranges = String(decoding: try JSONEncoder().encode(record.ranges.map { [$0.lowerBound, $0.upperBound] }), as: UTF8.self)
+    try db.execute(
+      sql: """
+        INSERT INTO jinx_blob (account, blob_id, total_length, ranges, pinned, last_access, content_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT DO UPDATE SET total_length = excluded.total_length, ranges = excluded.ranges,
+          pinned = excluded.pinned, last_access = excluded.last_access, content_type = excluded.content_type
+        """,
+      arguments: [record.accountId, record.blobId, record.totalLength, ranges, record.isPinned ? 1 : 0, record.lastAccess.timeIntervalSince1970, record.contentType]
+    )
+  }
+
+  public func deleteBlob(accountId: String, blobId: String) throws {
+    try db.execute(sql: "DELETE FROM jinx_blob WHERE account = ? AND blob_id = ?", arguments: [accountId, blobId])
+  }
+
   // MARK: Reset
 
   public func wipe(accountId: String) throws {
+    try db.execute(sql: "DELETE FROM jinx_blob WHERE account = ?", arguments: [accountId])
     try db.execute(sql: "DELETE FROM jinx_subscription WHERE account = ?", arguments: [accountId])
     try db.execute(sql: "DELETE FROM jinx_pin WHERE account = ?", arguments: [accountId])
     try db.execute(sql: "DELETE FROM jinx_pending WHERE account = ?", arguments: [accountId])

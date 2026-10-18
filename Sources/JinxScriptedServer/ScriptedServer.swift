@@ -75,6 +75,7 @@ public final class ScriptedServer: JMAPTransport, Sendable {
     var requests: [Request] = []
     var resolved: [Invocation] = []
     var blobs: [String: (data: Data, type: String)] = [:]
+    var downloads: [(blobId: String, range: Range<Int>?)] = []
     var nextBlob = 1
     var sessionState = 1
     var pushSubscribers: [AsyncThrowingStream<ServerSentEvent, any Error>.Continuation] = []
@@ -313,11 +314,19 @@ public final class ScriptedServer: JMAPTransport, Sendable {
     state.withLock { $0.blobs[blobId] = nil }
   }
 
+  /// Every blob download requested so far, with its range.
+  public var downloads: [(blobId: String, range: Range<Int>?)] {
+    state.withLock { $0.downloads }
+  }
+
   public func download(from url: URL, range: Range<Int>?) async throws(JMAPError) -> BlobDownload {
     let parts = url.pathComponents
-    guard parts.count >= 4, parts[1] == "download", let blob = state.withLock({ $0.blobs[parts[3]] }) else {
-      throw .httpStatus(404, body: Data())
+    guard parts.count >= 4, parts[1] == "download" else { throw .httpStatus(404, body: Data()) }
+    let blob = state.withLock { s -> (data: Data, type: String)? in
+      s.downloads.append((parts[3], range))
+      return s.blobs[parts[3]]
     }
+    guard let blob else { throw .httpStatus(404, body: Data()) }
     if let range {
       let clamped = range.clamped(to: 0..<blob.data.count)
       return BlobDownload(data: blob.data.subdata(in: clamped), contentType: blob.type, range: clamped, totalLength: blob.data.count)

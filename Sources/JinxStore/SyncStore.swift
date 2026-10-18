@@ -82,6 +82,13 @@ public protocol SyncTransaction {
   /// The JMAP ids of every object of a type the store holds.
   func ids(accountId: String, type: String) throws -> Set<String>
 
+  // MARK: Blobs
+
+  func blob(accountId: String, blobId: String) throws -> BlobRecord?
+  func blobs(accountId: String) throws -> [BlobRecord]
+  func setBlob(_ record: BlobRecord) throws
+  func deleteBlob(accountId: String, blobId: String) throws
+
   // MARK: Reset
 
   /// Discards every object, log entry, state string and journal row

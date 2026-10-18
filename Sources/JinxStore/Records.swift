@@ -146,6 +146,8 @@ public struct ChangeSet: Sendable, Hashable, Codable {
   public var failed: [LocalKey: SetError] = [:]
   /// Subscriptions whose id list or total changed.
   public var subscriptions: [String] = []
+  /// Blob-valued properties that now name a different blob.
+  public var blobs: [BlobChange] = []
 
   public init(accountId: String, source: Source) {
     self.accountId = accountId
@@ -153,7 +155,7 @@ public struct ChangeSet: Sendable, Hashable, Codable {
   }
 
   public var isEmpty: Bool {
-    types.values.allSatisfy(\.isEmpty) && failed.isEmpty && subscriptions.isEmpty
+    types.values.allSatisfy(\.isEmpty) && failed.isEmpty && subscriptions.isEmpty && blobs.isEmpty
   }
 
   public mutating func noteCreated(_ key: LocalKey, type: String) {
@@ -263,5 +265,97 @@ public struct SubscriptionResult: Sendable, Hashable, Codable {
     self.total = total
     self.queryState = queryState
     self.canCalculateChanges = canCalculateChanges
+  }
+}
+
+/// The index entry for a blob on disk.
+public struct BlobRecord: Sendable, Hashable, Codable {
+  public var accountId: String
+  public var blobId: String
+  /// The blob's full length, once known.
+  public var totalLength: Int?
+  /// Byte ranges present on disk, sorted and non-overlapping.  A
+  /// complete blob has one range covering everything.
+  public var ranges: [Range<Int>]
+  public var isPinned: Bool
+  public var lastAccess: Date
+  public var contentType: String?
+
+  public init(
+    accountId: String,
+    blobId: String,
+    totalLength: Int? = nil,
+    ranges: [Range<Int>] = [],
+    isPinned: Bool = false,
+    lastAccess: Date = Date(),
+    contentType: String? = nil
+  ) {
+    self.accountId = accountId
+    self.blobId = blobId
+    self.totalLength = totalLength
+    self.ranges = ranges
+    self.isPinned = isPinned
+    self.lastAccess = lastAccess
+    self.contentType = contentType
+  }
+
+  public var isComplete: Bool {
+    guard let totalLength else { return false }
+    return ranges == [0..<totalLength] || (totalLength == 0 && ranges.isEmpty)
+  }
+
+  public var bytesPresent: Int {
+    ranges.reduce(0) { $0 + $1.count }
+  }
+
+  /// True when every byte of `range` is on disk.
+  public func covers(_ range: Range<Int>) -> Bool {
+    ranges.contains { $0.lowerBound <= range.lowerBound && $0.upperBound >= range.upperBound }
+  }
+
+  /// The parts of `range` not on disk.
+  public func missing(in range: Range<Int>) -> [Range<Int>] {
+    var gaps: [Range<Int>] = []
+    var cursor = range.lowerBound
+    for present in ranges where present.upperBound > range.lowerBound && present.lowerBound < range.upperBound {
+      if present.lowerBound > cursor { gaps.append(cursor..<present.lowerBound) }
+      cursor = max(cursor, present.upperBound)
+    }
+    if cursor < range.upperBound { gaps.append(cursor..<range.upperBound) }
+    return gaps
+  }
+
+  /// Adds a range, merging with neighbors.
+  public mutating func add(_ range: Range<Int>) {
+    var merged = ranges + [range]
+    merged.sort { $0.lowerBound < $1.lowerBound }
+    var result: [Range<Int>] = []
+    for next in merged {
+      if let last = result.last, next.lowerBound <= last.upperBound {
+        result[result.count - 1] = last.lowerBound..<max(last.upperBound, next.upperBound)
+      } else {
+        result.append(next)
+      }
+    }
+    ranges = result
+  }
+}
+
+/// A change to a blob-valued property seen on a pull: the object now
+/// names a different blob.  The app's policy decides whether to fetch
+/// the new one and drop the old.
+public struct BlobChange: Sendable, Hashable, Codable {
+  public var type: String
+  public var key: LocalKey
+  public var property: String
+  public var oldBlobId: String?
+  public var newBlobId: String?
+
+  public init(type: String, key: LocalKey, property: String, oldBlobId: String?, newBlobId: String?) {
+    self.type = type
+    self.key = key
+    self.property = property
+    self.oldBlobId = oldBlobId
+    self.newBlobId = newBlobId
   }
 }
