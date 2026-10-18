@@ -507,7 +507,7 @@ Each phase ends with something a consumer can use.
    fetch is an on-demand `fetch` with extra arguments rather than a
    tracked fetch level; both are recorded as threads.
 5. **Blobs**: the blob store, ranged download and resume, invalidation.
-   Juke's phase 1 (pinned downloads) is possible here.
+   Juke's phase 1 (pinned downloads) is possible here.  Done 2026-10-17.
 6. **Scripted-server tier**, then the conformance tier against the
    reference server.  The scripted tier should begin alongside phase 2
    rather than after it, since it is how phase 2 gets tested.
