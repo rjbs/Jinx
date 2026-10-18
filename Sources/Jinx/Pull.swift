@@ -277,6 +277,13 @@ extension SyncEngine {
       if let entry = try tx.pending(key: existing.key), let claimant = entry.claimedBy, claimant != processId {
         return  // another process is pushing this object; it reconciles
       }
+      for property in descriptor.blobProperties {
+        let old = existing.local[property]?.stringValue
+        let new = fetched[property]?.stringValue
+        if old != new {
+          changeSet.blobs.append(BlobChange(type: type, key: existing.key, property: property, oldBlobId: old, newBlobId: new))
+        }
+      }
       switch existing.pending {
       case nil:
         if existing.snapshot == fetched && existing.local == fetched { return }
