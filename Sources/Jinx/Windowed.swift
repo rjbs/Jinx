@@ -205,13 +205,11 @@ extension SyncEngine {
         guard result == nil || moved else { continue }
         if let result, result.canCalculateChanges, let queryState = result.queryState, sub.limit == nil || sub.position == 0 {
           let upToId = sub.limit != nil ? result.ids.last : nil
-          queryCalls[sub.id] = (refresh.call("\(sub.type)/queryChanges", .queryChangesArguments(
-            accountId: accountId, filter: sub.filter, sort: sub.sort, sinceQueryState: queryState, upToId: upToId, calculateTotal: true
+          queryCalls[sub.id] = (refresh.call("\(sub.type)/queryChanges", sub.queryChangesArguments(
+            accountId: accountId, sinceQueryState: queryState, upToId: upToId
           )), true)
         } else {
-          queryCalls[sub.id] = (refresh.call("\(sub.type)/query", .queryArguments(
-            accountId: accountId, filter: sub.filter, sort: sub.sort, position: sub.position, limit: sub.limit, calculateTotal: true
-          )), false)
+          queryCalls[sub.id] = (refresh.call("\(sub.type)/query", sub.queryArguments(accountId: accountId)), false)
         }
       }
       var wanted: [String: Set<String>] = [:]  // type -> ids to fetch now
@@ -265,9 +263,7 @@ extension SyncEngine {
         var again = RequestBuilder(using: capabilities)
         var calls: [String: RequestBuilder.Call] = [:]
         for sub in subscriptionsNeedingFullQuery {
-          calls[sub.id] = again.call("\(sub.type)/query", .queryArguments(
-            accountId: accountId, filter: sub.filter, sort: sub.sort, position: sub.position, limit: sub.limit, calculateTotal: true
-          ))
+          calls[sub.id] = again.call("\(sub.type)/query", sub.queryArguments(accountId: accountId))
         }
         let response = try await send(again.request, session: session)
         for sub in subscriptionsNeedingFullQuery {
@@ -480,9 +476,7 @@ extension SyncEngine {
     var builder = RequestBuilder(using: capabilities)
     var calls: [String: RequestBuilder.Call] = [:]
     for sub in due {
-      calls[sub.id] = builder.call("\(sub.type)/query", .queryArguments(
-        accountId: accountId, filter: sub.filter, sort: sub.sort, position: sub.position, limit: sub.limit, calculateTotal: true
-      ))
+      calls[sub.id] = builder.call("\(sub.type)/query", sub.queryArguments(accountId: accountId))
     }
     let response = try await send(builder.request, session: session)
     var newResults: [String: SubscriptionResult] = [:]
@@ -501,5 +495,28 @@ extension SyncEngine {
       }
     }, source: .pull)
     subscriptionsDirty.subtract(dirty)
+  }
+}
+
+extension QuerySubscription {
+  /// The `/query` arguments for this subscription: the app's extra
+  /// arguments first, then the engine's, which win.
+  func queryArguments(accountId: String) -> JSONValue {
+    var args = JSONValue.object(arguments)
+    let engine = JSONValue.queryArguments(
+      accountId: accountId, filter: filter, sort: sort, position: position, limit: limit, calculateTotal: true
+    )
+    for (key, value) in engine.objectValue ?? [:] { args[key] = value }
+    return args
+  }
+
+  /// The `/queryChanges` arguments, carrying the same extras as `/query`.
+  func queryChangesArguments(accountId: String, sinceQueryState: String, upToId: String?) -> JSONValue {
+    var args = JSONValue.object(arguments)
+    let engine = JSONValue.queryChangesArguments(
+      accountId: accountId, filter: filter, sort: sort, sinceQueryState: sinceQueryState, upToId: upToId, calculateTotal: true
+    )
+    for (key, value) in engine.objectValue ?? [:] { args[key] = value }
+    return args
   }
 }

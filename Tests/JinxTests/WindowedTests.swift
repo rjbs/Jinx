@@ -139,7 +139,7 @@ private func byN(_ ascending: Bool = true) -> [JSONValue] {
   try await h.engine.subscribe(QuerySubscription(id: "top", accountId: "acct", type: "Item", sort: byN(false), limit: 2))
   try await h.engine.pin("Item", ids: [ids[0]])
   try await h.engine.sync()
-  let key = try #require(try await h.engine.create("Item", ["n": 50]))
+  let key = try await h.engine.create("Item", ["n": 50])
   h.server.enqueue(.transportFailure)
   await #expect(throws: SyncError.self) { try await h.engine.sync() }
 
@@ -192,4 +192,26 @@ private func byN(_ ascending: Bool = true) -> [JSONValue] {
   try await h.engine.sync()
   #expect(try await h.engine.objects(in: "desc").map { $0.value["n"] } == [3, 2, 1])
   #expect(try await h.engine.objects(type: "Thing").count == 3)
+}
+
+@Test func subscriptionArgumentsReachQueryAndQueryChangesAndEngineKeysWin() async throws {
+  let h = try Harness(types: [itemType])
+  h.server.configure("Item", .init(canCalculateChanges: true))
+  for n in 1...3 { h.server.create("Item", ["n": .number(Double(n))]) }
+  let extras: [String: JSONValue] = ["collapseThreads": true, "limit": 999, "calculateTotal": false]
+  try await h.engine.subscribe(QuerySubscription(id: "conv", accountId: "acct", type: "Item", sort: byN(), limit: 2, arguments: extras))
+  try await h.engine.sync()
+  let query = try #require(h.server.calls(named: "Item/query").first)
+  #expect(query.arguments["collapseThreads"] == true)
+  #expect(query.arguments["limit"] == 2, "the engine's own arguments win")
+  #expect(query.arguments["calculateTotal"] == true)
+
+  h.server.create("Item", ["n": 0])
+  try await h.engine.sync()
+  let changes = try #require(h.server.calls(named: "Item/queryChanges").first)
+  #expect(changes.arguments["collapseThreads"] == true)
+  #expect(changes.arguments["sinceQueryState"] != nil)
+
+  try await h.engine.subscribe(QuerySubscription(id: "conv", accountId: "acct", type: "Item", sort: byN(), limit: 2, arguments: ["collapseThreads": false]))
+  #expect(try await h.engine.result(of: "conv") == nil, "changed arguments start the subscription over")
 }

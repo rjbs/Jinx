@@ -230,6 +230,11 @@ public struct QuerySubscription: Sendable, Hashable, Codable {
   public var position: Int
   /// `nil` means no limit.
   public var limit: Int?
+  /// Extra arguments for the type's `/query` and `/queryChanges`, such
+  /// as Email's `collapseThreads`, sent on both so their results agree.
+  /// Part of the subscription's identity: changing them starts it over.
+  /// The engine's own arguments win over any of the same name.
+  public var arguments: [String: JSONValue]
 
   public init(
     id: String,
@@ -238,7 +243,8 @@ public struct QuerySubscription: Sendable, Hashable, Codable {
     filter: JSONValue? = nil,
     sort: [JSONValue] = [],
     position: Int = 0,
-    limit: Int? = nil
+    limit: Int? = nil,
+    arguments: [String: JSONValue] = [:]
   ) {
     self.id = id
     self.accountId = accountId
@@ -247,6 +253,7 @@ public struct QuerySubscription: Sendable, Hashable, Codable {
     self.sort = sort
     self.position = position
     self.limit = limit
+    self.arguments = arguments
   }
 
   public var coversWholeType: Bool { filter == nil && limit == nil && position == 0 }
