@@ -2,6 +2,13 @@ import Foundation
 import JinxJSON
 import JinxWire
 
+// Several of these records are stored as JSON in the database and read
+// back by later versions of Jinx: QuerySubscription, SubscriptionResult,
+// BlobRecord, ChangeSet, SetError.  Their stored form is a compatibility
+// surface.  A field added to one of them must decode as optional with a
+// default, never as required, or every database written before the field
+// existed stops opening. -- claude, 2026-10-19
+
 /// The stable local identity of a synced object.  It is assigned when
 /// the object first appears locally, whether from the server or from a
 /// local create, and never changes afterward, so an app's own tables
@@ -257,6 +264,25 @@ public struct QuerySubscription: Sendable, Hashable, Codable {
   }
 
   public var coversWholeType: Bool { filter == nil && limit == nil && position == 0 }
+
+  private enum CodingKeys: String, CodingKey {
+    case id, accountId, type, filter, sort, position, limit, arguments
+  }
+
+  // Hand-written so that rows stored before `arguments` existed still
+  // decode.  Any field added to a stored record from now on gets the
+  // same decodeIfPresent treatment. -- claude, 2026-10-19
+  public init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    id = try container.decode(String.self, forKey: .id)
+    accountId = try container.decode(String.self, forKey: .accountId)
+    type = try container.decode(String.self, forKey: .type)
+    filter = try container.decodeIfPresent(JSONValue.self, forKey: .filter)
+    sort = try container.decodeIfPresent([JSONValue].self, forKey: .sort) ?? []
+    position = try container.decodeIfPresent(Int.self, forKey: .position) ?? 0
+    limit = try container.decodeIfPresent(Int.self, forKey: .limit)
+    arguments = try container.decodeIfPresent([String: JSONValue].self, forKey: .arguments) ?? [:]
+  }
 }
 
 /// What the server last said a subscription's window contains.

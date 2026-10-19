@@ -297,3 +297,17 @@ private func assertRanges(
   #expect(record.bytesPresent == 20)
   #expect(BlobRecord(accountId: "a", blobId: "b", totalLength: 100, ranges: [0..<100]).isComplete)
 }
+
+@Test func subscriptionsStoredBeforeArgumentsExistedStillDecode() throws {
+  let old = """
+  {"id":"inbox","accountId":"acct","type":"Email","filter":{"inMailbox":"m1"},"sort":[],"position":0,"limit":50}
+  """
+  let decoded = try JSONDecoder().decode(QuerySubscription.self, from: Data(old.utf8))
+  #expect(decoded.arguments == [:])
+  #expect(decoded.limit == 50)
+  let minimal = """
+  {"id":"all","accountId":"acct","type":"Email"}
+  """
+  let sparse = try JSONDecoder().decode(QuerySubscription.self, from: Data(minimal.utf8))
+  #expect(sparse == QuerySubscription(id: "all", accountId: "acct", type: "Email"))
+}
