@@ -17,6 +17,9 @@ public struct SyncConfiguration: Sendable {
   /// A Darwin notification name shared by every process on this store,
   /// so each learns of the others' commits.  `nil` disables it.
   public var signalName: String?
+  /// Capabilities to name in every request's `using` beyond the types'
+  /// own, for server extensions such as Cyrus's mail extension.
+  public var additionalCapabilities: [String]
 
   public init(
     accountId: String,
@@ -24,7 +27,8 @@ public struct SyncConfiguration: Sendable {
     processId: String = UUID().uuidString,
     claimStaleAfter: TimeInterval = 120,
     fetchChunk: Int? = nil,
-    signalName: String? = nil
+    signalName: String? = nil,
+    additionalCapabilities: [String] = []
   ) {
     self.accountId = accountId
     self.types = types
@@ -32,6 +36,7 @@ public struct SyncConfiguration: Sendable {
     self.claimStaleAfter = claimStaleAfter
     self.fetchChunk = fetchChunk
     self.signalName = signalName
+    self.additionalCapabilities = additionalCapabilities
   }
 }
 
@@ -132,7 +137,7 @@ public actor SyncEngine<Store: SyncStore> {
   }
 
   var capabilities: Set<String> {
-    Set(orderedTypes.map(\.capability)).union([Session.coreCapability])
+    Set(orderedTypes.map(\.capability)).union([Session.coreCapability]).union(configuration.additionalCapabilities)
   }
 
   // MARK: - Reads

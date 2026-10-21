@@ -311,3 +311,11 @@ private func assertRanges(
   let sparse = try JSONDecoder().decode(QuerySubscription.self, from: Data(minimal.utf8))
   #expect(sparse == QuerySubscription(id: "all", accountId: "acct", type: "Email"))
 }
+
+@Test func subscriptionResultsStoredBeforeExtraExistedStillDecode() throws {
+  let old = """
+  {"ids":["e1"],"total":1,"queryState":"q","canCalculateChanges":true}
+  """
+  let decoded = try JSONDecoder().decode(SubscriptionResult.self, from: Data(old.utf8))
+  #expect(decoded == SubscriptionResult(ids: ["e1"], total: 1, queryState: "q", canCalculateChanges: true))
+}

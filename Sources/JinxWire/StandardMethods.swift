@@ -95,6 +95,10 @@ public struct SetResponse: Sendable, Hashable {
 
 /// A `Foo/query` response.
 public struct QueryResponse: Sendable, Hashable {
+  public static let standardProperties: Set<String> = [
+    "accountId", "queryState", "canCalculateChanges", "position", "ids", "total", "limit",
+  ]
+
   public var accountId: String
   public var queryState: String
   public var canCalculateChanges: Bool
@@ -102,6 +106,9 @@ public struct QueryResponse: Sendable, Hashable {
   public var ids: [String]
   public var total: Int?
   public var limit: Int?
+  /// Every top-level property beyond the standard ones, which extensions
+  /// add: Fastmail's category sort returns `groupByCounts`.
+  public var extra: [String: JSONValue]
 
   public init(json: JSONValue) throws(JMAPError) {
     accountId = try json.string("accountId", in: "/query")
@@ -111,6 +118,7 @@ public struct QueryResponse: Sendable, Hashable {
     ids = json.ids("ids")
     total = json["total"]?.intValue
     limit = json["limit"]?.intValue
+    extra = (json.objectValue ?? [:]).filter { !Self.standardProperties.contains($0.key) }
   }
 }
 
@@ -121,14 +129,21 @@ public struct QueryChangesResponse: Sendable, Hashable {
     public var index: Int
   }
 
+  public static let standardProperties: Set<String> = [
+    "accountId", "oldQueryState", "newQueryState", "total", "removed", "added",
+  ]
+
   public var accountId: String
   public var oldQueryState: String
   public var newQueryState: String
   public var total: Int?
   public var removed: [String]
   public var added: [AddedItem]
+  /// Every top-level property beyond the standard ones.
+  public var extra: [String: JSONValue]
 
   public init(json: JSONValue) throws(JMAPError) {
+    extra = (json.objectValue ?? [:]).filter { !Self.standardProperties.contains($0.key) }
     accountId = try json.string("accountId", in: "/queryChanges")
     oldQueryState = try json.string("oldQueryState", in: "/queryChanges")
     newQueryState = try json.string("newQueryState", in: "/queryChanges")

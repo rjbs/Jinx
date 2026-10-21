@@ -292,12 +292,30 @@ public struct SubscriptionResult: Sendable, Hashable, Codable {
   public var total: Int?
   public var queryState: String?
   public var canCalculateChanges: Bool
+  /// Non-standard top-level properties of the last `/query` or
+  /// `/queryChanges` response, such as Fastmail's `groupByCounts`.
+  /// Each refresh replaces them, since they describe the new state.
+  public var extra: [String: JSONValue]
 
-  public init(ids: [String], total: Int? = nil, queryState: String? = nil, canCalculateChanges: Bool = false) {
+  public init(ids: [String], total: Int? = nil, queryState: String? = nil, canCalculateChanges: Bool = false, extra: [String: JSONValue] = [:]) {
     self.ids = ids
     self.total = total
     self.queryState = queryState
     self.canCalculateChanges = canCalculateChanges
+    self.extra = extra
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case ids, total, queryState, canCalculateChanges, extra
+  }
+
+  public init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    ids = try container.decodeIfPresent([String].self, forKey: .ids) ?? []
+    total = try container.decodeIfPresent(Int.self, forKey: .total)
+    queryState = try container.decodeIfPresent(String.self, forKey: .queryState)
+    canCalculateChanges = try container.decodeIfPresent(Bool.self, forKey: .canCalculateChanges) ?? false
+    extra = try container.decodeIfPresent([String: JSONValue].self, forKey: .extra) ?? [:]
   }
 }
 

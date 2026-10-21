@@ -74,3 +74,10 @@ import JinxJSON
       == ["accountId": "a", "sinceQueryState": "q", "maxChanges": 5, "upToId": "z"]
   )
 }
+
+@Test func queryResponsesKeepExtensionProperties() throws {
+  let query = try QueryResponse(json: json("{\"accountId\":\"a\",\"queryState\":\"q\",\"ids\":[],\"groupByCounts\":[1,2],\"position\":0}"))
+  #expect(query.extra == ["groupByCounts": [1, 2]])
+  let changes = try QueryChangesResponse(json: json("{\"accountId\":\"a\",\"oldQueryState\":\"q\",\"newQueryState\":\"r\",\"removed\":[],\"added\":[],\"groupByCounts\":[3]}"))
+  #expect(changes.extra == ["groupByCounts": [3]])
+}

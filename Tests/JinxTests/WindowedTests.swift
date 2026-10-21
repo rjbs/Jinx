@@ -215,3 +215,25 @@ private func byN(_ ascending: Bool = true) -> [JSONValue] {
   try await h.engine.subscribe(QuerySubscription(id: "conv", accountId: "acct", type: "Item", sort: byN(), limit: 2, arguments: ["collapseThreads": false]))
   #expect(try await h.engine.result(of: "conv") == nil, "changed arguments start the subscription over")
 }
+
+@Test func extensionPropertiesAndCapabilitiesPassThrough() async throws {
+  let server = ScriptedServer(capabilities: ["urn:test:items"])
+  server.configure("Item", .init(canCalculateChanges: true))
+  for n in 1...3 { server.create("Item", ["n": .number(Double(n))]) }
+  let store = try GRDBSyncStore.inMemory()
+  let engine = try SyncEngine(
+    configuration: SyncConfiguration(accountId: "acct", types: [itemType], additionalCapabilities: ["https://cyrusimap.org/ns/jmap/mail"]),
+    transport: server,
+    store: store
+  )
+  server.enqueue(.rewrite(method: "Item/query") { var r = $0; r["groupByCounts"] = [2, 1]; return r })
+  try await engine.subscribe(QuerySubscription(id: "cat", accountId: "acct", type: "Item", sort: byN()))
+  try await engine.sync()
+  #expect(server.requests.allSatisfy { $0.using.contains("https://cyrusimap.org/ns/jmap/mail") })
+  #expect(try await engine.result(of: "cat")?.extra == ["groupByCounts": [2, 1]])
+
+  server.enqueue(.rewrite(method: "Item/queryChanges") { var r = $0; r["groupByCounts"] = [3, 1]; return r })
+  server.create("Item", ["n": 0])
+  try await engine.sync()
+  #expect(try await engine.result(of: "cat")?.extra == ["groupByCounts": [3, 1]], "a queryChanges refresh replaces the extras")
+}

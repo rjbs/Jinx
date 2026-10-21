@@ -253,10 +253,11 @@ extension SyncEngine {
           if let limit = sub.limit, result.ids.count > limit { result.ids.removeLast(result.ids.count - limit) }
           result.total = delta.total ?? result.total
           result.queryState = delta.newQueryState
+          result.extra = delta.extra
           newResults[sub.id] = result
         } else {
           let query = try QueryResponse(json: response.arguments)
-          newResults[sub.id] = SubscriptionResult(ids: query.ids, total: query.total, queryState: query.queryState, canCalculateChanges: query.canCalculateChanges)
+          newResults[sub.id] = SubscriptionResult(ids: query.ids, total: query.total, queryState: query.queryState, canCalculateChanges: query.canCalculateChanges, extra: query.extra)
         }
       }
       if !subscriptionsNeedingFullQuery.isEmpty {
@@ -271,7 +272,7 @@ extension SyncEngine {
             throw SyncError.retryable("\(sub.type)/query (\(sub.id)) failed")
           }
           let query = try QueryResponse(json: invocation.arguments)
-          newResults[sub.id] = SubscriptionResult(ids: query.ids, total: query.total, queryState: query.queryState, canCalculateChanges: query.canCalculateChanges)
+          newResults[sub.id] = SubscriptionResult(ids: query.ids, total: query.total, queryState: query.queryState, canCalculateChanges: query.canCalculateChanges, extra: query.extra)
         }
       }
 
@@ -485,7 +486,7 @@ extension SyncEngine {
         throw SyncError.retryable("\(sub.type)/query (\(sub.id)) failed")
       }
       let query = try QueryResponse(json: invocation.arguments)
-      newResults[sub.id] = SubscriptionResult(ids: query.ids, total: query.total, queryState: query.queryState, canCalculateChanges: query.canCalculateChanges)
+      newResults[sub.id] = SubscriptionResult(ids: query.ids, total: query.total, queryState: query.queryState, canCalculateChanges: query.canCalculateChanges, extra: query.extra)
     }
     let resultsNow = newResults
     try await commit({ tx, changeSet in
