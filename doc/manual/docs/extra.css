@@ -1,0 +1,12 @@
+/* Hand-drawn SVG figures share these classes, so each diagram carries
+   only its geometry. */
+.md-typeset figure.jinx-figure { width: auto; }
+.md-typeset figure.jinx-figure svg {
+  max-width: 100%;
+  height: auto;
+  font-family: var(--md-text-font-family, sans-serif);
+}
+.jinx-figure .blk { fill: var(--md-code-bg-color); stroke: var(--md-primary-fg-color); stroke-width: 1.5; }
+.jinx-figure .ext { fill: none; stroke: var(--md-default-fg-color--light); stroke-width: 1.5; stroke-dasharray: 6 4; }
+.jinx-figure .nm  { fill: var(--md-default-fg-color); font-size: 15px; font-weight: 600; }
+.jinx-figure .sub { fill: var(--md-default-fg-color--light); font-size: 12px; }

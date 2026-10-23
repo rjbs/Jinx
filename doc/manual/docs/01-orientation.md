@@ -96,34 +96,42 @@ And it runs only on Apple platforms, iOS 27 and macOS 27 or later.
 
 ## The stack
 
-Jinx is one package with six library modules and a test server.  Each
-module depends only on the ones below it, and each lower module is
-usable without the ones above.
+Jinx is one package with six library modules and a test server.  The
+modules form a stack: each one uses only what sits below it, and each
+lower module is usable without the ones above.
 
-```mermaid
-flowchart TB
-  App["Application: SwiftUI, a CLI, a playback engine"]
-  Types["JinxTypes<br/>sync facts about Mail and Tasks, as data"]
-  Jinx["Jinx<br/>SyncEngine: pull, push, subscriptions, blobs, change stream"]
-  Store["JinxStore<br/>SyncStore protocol and its GRDB implementation"]
-  Patch["JinxPatch<br/>diff, apply, rebase"]
-  Wire["JinxWire<br/>session, requests, errors, HTTP, EventSource"]
-  JSON["JinxJSON<br/>JSONValue and JSON pointers"]
-  Scripted["JinxScriptedServer<br/>an in-process JMAP server for tests"]
-
-  App --> Types
-  App --> Jinx
-  Types --> Jinx
-  Jinx --> Store
-  Jinx --> Patch
-  Jinx --> Wire
-  Store --> Wire
-  Store --> JSON
-  Patch --> JSON
-  Wire --> JSON
-  Scripted -.-> Wire
-  Scripted -.-> Patch
-```
+<figure class="jinx-figure">
+<svg viewBox="0 0 760 456" width="760" height="456" role="img" aria-labelledby="stack-title">
+<title id="stack-title">The Jinx module stack</title>
+<rect class="ext" x="20" y="20" width="460" height="56" rx="4"/>
+<text class="nm" x="250" y="43" text-anchor="middle">Application</text>
+<text class="sub" x="250" y="63" text-anchor="middle">SwiftUI, a CLI, a playback engine: not part of Jinx</text>
+<rect class="blk" x="20" y="92" width="460" height="56" rx="4"/>
+<text class="nm" x="250" y="115" text-anchor="middle">JinxTypes</text>
+<text class="sub" x="250" y="135" text-anchor="middle">sync facts about Mail and Tasks, as data</text>
+<rect class="blk" x="20" y="164" width="460" height="56" rx="4"/>
+<text class="nm" x="250" y="187" text-anchor="middle">Jinx</text>
+<text class="sub" x="250" y="207" text-anchor="middle">SyncEngine: pull, push, writes, subscriptions, blobs, change stream</text>
+<rect class="blk" x="20" y="236" width="300" height="56" rx="4"/>
+<text class="nm" x="170" y="259" text-anchor="middle">JinxStore</text>
+<text class="sub" x="170" y="279" text-anchor="middle">SyncStore protocol, GRDB implementation</text>
+<rect class="blk" x="20" y="308" width="300" height="56" rx="4"/>
+<text class="nm" x="170" y="331" text-anchor="middle">JinxWire</text>
+<text class="sub" x="170" y="351" text-anchor="middle">session, requests, errors, HTTP, EventSource</text>
+<rect class="blk" x="336" y="236" width="144" height="128" rx="4"/>
+<text class="nm" x="408" y="295" text-anchor="middle">JinxPatch</text>
+<text class="sub" x="408" y="315" text-anchor="middle">diff, apply, rebase</text>
+<rect class="blk" x="20" y="380" width="460" height="56" rx="4"/>
+<text class="nm" x="250" y="403" text-anchor="middle">JinxJSON</text>
+<text class="sub" x="250" y="423" text-anchor="middle">JSONValue and JSON pointers</text>
+<rect class="ext" x="520" y="236" width="220" height="128" rx="4"/>
+<text class="nm" x="630" y="285" text-anchor="middle">JinxScriptedServer</text>
+<text class="sub" x="630" y="305" text-anchor="middle">an in-process JMAP server</text>
+<text class="sub" x="630" y="321" text-anchor="middle">for tests, beside the stack;</text>
+<text class="sub" x="630" y="337" text-anchor="middle">uses JinxWire and JinxPatch</text>
+</svg>
+<figcaption>A module may use anything drawn below it and nothing beside or above it.</figcaption>
+</figure>
 
 | Module | What it holds | Size |
 |---|---|---|
