@@ -12,7 +12,7 @@ how an app consumes what it produces.
 ## The run loop
 
 ```swift
-Task { await engine.run(pollInterval: .minutes(15)) }
+Task { await engine.run(pollInterval: .seconds(900)) }
 ```
 
 `run()` runs until its task is cancelled.  It takes a `Backoff` for
@@ -62,8 +62,8 @@ exits on its own.  If the session cannot be fetched at all, the
 listener backs off and tries again, so an app that launches offline
 connects by itself when the network returns.
 
-The RFC permits one EventSource connection per client, and a
-reasonable app with a GUI and a CLI gives the connection to the GUI.
+One EventSource connection per database is enough, and a reasonable
+app with a GUI and a CLI gives the connection to the GUI.
 That is a matter of which process calls `run()`.  NerfJournal's
 command-line tool does not; after a write it calls `sync()` once and
 exits, which pushes its change and pulls whatever is new, and the
