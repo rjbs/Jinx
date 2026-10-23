@@ -52,9 +52,18 @@ extension SyncEngine {
   /// the window by numbers in `result.extra`, such as section counts,
   /// must read this way; two separate reads can straddle a commit.
   public struct Window: Sendable, Hashable {
+    public var subscription: QuerySubscription
     public var result: SubscriptionResult
     /// In the query's order, omitting any object not yet held.
     public var objects: [SyncedObject]
+    /// Ids in `result.ids` whose objects are not held.  Normally empty,
+    /// because a pass fetches a window's objects before it commits the
+    /// result; non-empty when a `/get` reported one not found, as when
+    /// an object was destroyed between the query and the fetch.  A
+    /// consumer that cuts the window positionally must check this.
+    public var missingIds: [String]
+
+    public var isComplete: Bool { missingIds.isEmpty }
   }
 
   /// The subscription's window, or `nil` before its first refresh.
@@ -68,7 +77,12 @@ extension SyncEngine {
         try tx.objects(accountId: accountId, type: subscription.type, ids: result.ids).map { ($0.id!, $0) },
         uniquingKeysWith: { first, _ in first }
       )
-      return Window(result: result, objects: result.ids.compactMap { held[$0] }.map(SyncedObject.init))
+      return Window(
+        subscription: subscription,
+        result: result,
+        objects: result.ids.compactMap { held[$0] }.map(SyncedObject.init),
+        missingIds: result.ids.filter { held[$0] == nil }
+      )
     }
   }
 

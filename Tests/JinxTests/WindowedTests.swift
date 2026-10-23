@@ -249,4 +249,17 @@ private func byN(_ ascending: Bool = true) -> [JSONValue] {
   #expect(window.result.total == 3)
   #expect(window.objects.map { $0.value["n"] } == [3, 2])
   #expect(window.objects.map(\.id) == window.result.ids)
+  #expect(window.subscription.id == "top")
+  #expect(window.isComplete)
+
+  // A destroy applied without the window being re-queried leaves a gap
+  // the window reports rather than hides.
+  let gone = try #require(window.objects.first?.id)
+  try await h.store.write { tx in
+    if let object = try tx.object(accountId: "acct", type: "Item", id: gone) { try tx.delete(key: object.key) }
+  }
+  let gapped = try #require(try await h.engine.window(of: "top"))
+  #expect(gapped.missingIds == [gone])
+  #expect(!gapped.isComplete)
+  #expect(gapped.objects.count == 1)
 }
