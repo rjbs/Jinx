@@ -35,7 +35,7 @@ not cover its length, and complete when one range covers everything.
 <text class="sub" x="330" y="63" text-anchor="middle">gap</text>
 <text class="sub" x="520" y="63" text-anchor="middle">8192 ..&lt; 12288 on disk</text>
 <text class="sub" x="670" y="63" text-anchor="middle">not yet</text>
-<line x1="180" y1="96" x2="520" y2="96" stroke="var(--md-primary-fg-color)" stroke-width="3"/>
+<line x1="164" y1="96" x2="455" y2="96" stroke="var(--md-primary-fg-color)" stroke-width="3"/>
 <text class="sub" x="350" y="118" text-anchor="middle">read(range: 3000..&lt;10000) fetches only 4096..&lt;8192, then serves the bytes</text>
 <text class="sub" x="40" y="26">totalLength 16384</text>
 </svg>
