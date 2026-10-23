@@ -47,20 +47,36 @@ extension SyncEngine {
     return try await store.read { tx in try tx.subscriptionResult(accountId: accountId, id: subscriptionId) }
   }
 
-  /// The objects in a subscription's window, in the query's order,
-  /// omitting any not yet held.
-  public func objects(in subscriptionId: String) async throws -> [SyncedObject] {
+  /// A subscription's result and the objects in its window, read in one
+  /// transaction so they describe the same state.  Anything that cuts
+  /// the window by numbers in `result.extra`, such as section counts,
+  /// must read this way; two separate reads can straddle a commit.
+  public struct Window: Sendable, Hashable {
+    public var result: SubscriptionResult
+    /// In the query's order, omitting any object not yet held.
+    public var objects: [SyncedObject]
+  }
+
+  /// The subscription's window, or `nil` before its first refresh.
+  public func window(of subscriptionId: String) async throws -> Window? {
     let accountId = accountId
     return try await store.read { tx in
       guard let subscription = try tx.subscription(accountId: accountId, id: subscriptionId),
             let result = try tx.subscriptionResult(accountId: accountId, id: subscriptionId)
-      else { return [] }
+      else { return nil }
       let held = Dictionary(
         try tx.objects(accountId: accountId, type: subscription.type, ids: result.ids).map { ($0.id!, $0) },
         uniquingKeysWith: { first, _ in first }
       )
-      return result.ids.compactMap { held[$0] }.map(SyncedObject.init)
+      return Window(result: result, objects: result.ids.compactMap { held[$0] }.map(SyncedObject.init))
     }
+  }
+
+  /// The objects in a subscription's window, in the query's order,
+  /// omitting any not yet held.  Pair with `result(of:)` only when the
+  /// two need not agree; otherwise use `window(of:)`.
+  public func objects(in subscriptionId: String) async throws -> [SyncedObject] {
+    try await window(of: subscriptionId)?.objects ?? []
   }
 
   /// Keeps objects held regardless of any subscription, fetching them

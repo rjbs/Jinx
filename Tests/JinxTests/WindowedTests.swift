@@ -237,3 +237,16 @@ private func byN(_ ascending: Bool = true) -> [JSONValue] {
   try await engine.sync()
   #expect(try await engine.result(of: "cat")?.extra == ["groupByCounts": [3, 1]], "a queryChanges refresh replaces the extras")
 }
+
+@Test func windowReadsResultAndObjectsTogether() async throws {
+  let h = try Harness(types: [itemType])
+  for n in 1...3 { h.server.create("Item", ["n": .number(Double(n))]) }
+  #expect(try await h.engine.window(of: "top") == nil)
+  try await h.engine.subscribe(QuerySubscription(id: "top", accountId: "acct", type: "Item", sort: byN(false), limit: 2))
+  #expect(try await h.engine.window(of: "top") == nil, "no result before the first refresh")
+  try await h.engine.sync()
+  let window = try #require(try await h.engine.window(of: "top"))
+  #expect(window.result.total == 3)
+  #expect(window.objects.map { $0.value["n"] } == [3, 2])
+  #expect(window.objects.map(\.id) == window.result.ids)
+}
