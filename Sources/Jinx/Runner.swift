@@ -174,3 +174,12 @@ extension SyncEngine {
     }
   }
 }
+
+extension SyncEngine {
+  /// For tests: whether a pass has been requested since the last clear.
+  var hasSyncRequest: Bool { syncRequested }
+
+  func clearSyncRequest() {
+    syncRequested = false
+  }
+}

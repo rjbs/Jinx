@@ -179,8 +179,10 @@ private func byN(_ ascending: Bool = true) -> [JSONValue] {
   #expect(try await h.engine.result(of: "s") == nil)
   try await h.engine.sync()
   #expect(try await h.engine.objects(in: "s").map { $0.value["n"] } == [1, 2])
+  await h.engine.clearSyncRequest()
   try await h.engine.subscribe(QuerySubscription(id: "s", accountId: "acct", type: "Item", sort: byN(true), limit: 2))
   #expect(try await h.engine.result(of: "s") != nil, "an identical redefinition keeps the result")
+  #expect(await h.engine.hasSyncRequest == false, "and asks for no pass")
 }
 
 @Test func subscriptionOnAFullTypeOrdersWithoutFetching() async throws {

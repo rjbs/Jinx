@@ -20,13 +20,17 @@ extension SyncEngine {
     var subscription = subscription
     subscription.accountId = accountId
     let definition = subscription
-    try await store.write { tx in
-      if let existing = try tx.subscription(accountId: accountId, id: definition.id), existing != definition {
+    let changed = try await store.write { tx -> Bool in
+      if let existing = try tx.subscription(accountId: accountId, id: definition.id) {
+        if existing == definition { return false }
         try tx.setSubscriptionResult(nil, accountId: accountId, id: definition.id)
       }
       try tx.setSubscription(definition)
+      return true
     }
-    requestSync()
+    // An identical redefinition is a no-op all the way down: no store
+    // change and no pass, so an app may re-declare freely.
+    if changed { requestSync() }
   }
 
   public func unsubscribe(_ id: String) async throws {
