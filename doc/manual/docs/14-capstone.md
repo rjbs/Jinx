@@ -101,7 +101,7 @@ sequenceDiagram
   E->>S: Email/query for the inbox subscription
   E->>S: Email/get for the 50 ids in the window
   E->>S: Thread/get for the threads those emails name
-  Note over E: one transaction: 50 Emails, their Threads, the subscription result; then evict
+  Note over E: one transaction for the Emails, their Threads and the subscription result, then evict
 ```
 
 The query is the subscription's arguments with the engine's on top:

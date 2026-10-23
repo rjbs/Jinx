@@ -65,18 +65,19 @@ needs a retry, with a cap of twenty rounds.
 4. **Apply.**  In one transaction, reconcile the response against what
    was sent.
 
-The creation id is derived from the local key, so a create that
-references another pending create of the same type can use the `#jinx42`
-form the RFC provides, and so the response can be matched to its
-object without a lookup table.
+The creation id is derived from the local key, `jinx` followed by
+the key's number, so the response can be matched to its object
+without a lookup table, and so an object can in principle name a
+pending create by `#jinx42`, the form the RFC provides.
 
 !!! info "Not yet as designed"
-    A create that references a pending create of another type, such
-    as an Email filed into a Mailbox that does not yet exist on the
-    server, is refused by the write path with
-    `crossTypeCreationReference`.  The plan has the design for ordering
-    such creates across types in one request and holding the dependent
-    back when the referenced create fails.  Thread 2026-10-16-ytf6zn.
+    In principle only.  A write whose value references a pending
+    create, of the same type or another, is refused today with
+    `crossTypeCreationReference`; nothing rewrites the reference when
+    the real id arrives.  The plan has the design: same-type references
+    within one `/set`, creates ordered across types in one request, and
+    the dependent held back when the create it names fails.  Thread
+    2026-10-16-ytf6zn.
 
 ## When the send fails
 
