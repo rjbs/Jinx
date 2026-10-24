@@ -6,15 +6,15 @@ the shape in half a page, section 5.3, and leaves the interesting
 question alone: what should a client put in one?
 
 The lazy answer is "the whole object", or "every property my model
-knows about".  Both are wrong in the same way.  A Task on the server
-may carry properties your app has never heard of, because another
-client put them there, or because the type grew a property after you
-shipped.  Send the whole object and you send those properties back as
-you last saw them, or not at all, and either way you are writing over
-someone else's data.  JMAP's patch format exists so that a client can
-say only what it changed.  `JinxPatch` is the module that computes
-what you changed, applies it, and works out what to do when the server
-changed the same object in the meantime.  It is pure: functions over
+knows about".  Both go wrong the same way.  An update replaces
+whatever it names.  Name a whole map such as `keywords`, and every
+entry another client added to it is gone.  Name every property the
+model holds, and any of them the server changed since the last fetch
+is put back to the stale value.  JMAP's patch format exists so that a
+client can say only what it changed, down to one entry of one map.
+`JinxPatch` is the module that computes what changed, applies it, and
+works out what to do when the server changed the same object in the
+meantime.  It is pure: functions over
 `JSONValue` with no I/O and no state.
 
 ## PatchObject

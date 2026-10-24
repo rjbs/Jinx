@@ -49,7 +49,7 @@ in its own database file beside its client-only tables.
 
 ## The core model
 
-Every synced object is a cell with three parts and a possible log entry.
+Every synced object has three parts and a possible log entry.
 
 - **Server server version.**  The last full JSON object the server is known to
   hold, exactly as fetched, including properties the app does not model.

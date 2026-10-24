@@ -169,13 +169,13 @@ permanent failure the same rule holds: the edit made after the send
 is never reverted, because the user made it against what they saw,
 and what they saw was not wrong.
 
-!!! info "Not yet as designed"
-    The plan describes a fetch level per object, summary or full, so
-    that a later change refetches at the level the object was last
-    fetched at.  The code has no such field; a windowed object fetched
-    with extra properties by `fetch(_:ids:arguments:)` is refetched
-    with the type's summary properties on the next change.  Thread
-    2026-10-17-pm2sqs.
+!!! info "Not yet built"
+    A windowed object fetched with extra properties by
+    `fetch(_:ids:arguments:)` is refetched with the type's summary
+    properties on the next change, because nothing records the level
+    it was fetched at.  A fetch level per object, summary or full, so
+    that a later change refetches at the same level, is planned.
+    Thread 2026-10-17-pm2sqs.
 
 ## What the app sees
 

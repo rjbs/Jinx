@@ -81,11 +81,6 @@ happened.
   in the same transaction.  If `hasMoreChanges` is false the type is
   done; otherwise it goes round again.
 
-The plan described discarding the whole response when any type's
-`oldState` mismatched.  The code is finer: types that matched are
-applied, and only the mismatched ones retry.  Since each type's state
-is independent, nothing is lost by applying what was consistent.
-
 A pass runs at most two hundred rounds.  The cap exists so that a
 server that reports `hasMoreChanges` forever cannot hold the engine
 in a loop, and no server has come near it.

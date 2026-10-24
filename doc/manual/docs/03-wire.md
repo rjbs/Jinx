@@ -265,9 +265,9 @@ On the wire, the request is this:
 Now consider what this code does not do, because each omission is a
 unit of this manual.  It does not check that `delta.oldState` equals
 the state it sent, and if it does not, the server moved on between
-your requests and you are about to apply changes against the wrong
-baseline.  It does not loop on `delta.hasMoreChanges`.  It does not
-notice that `delta.destroyed` names objects you hold.  It does not
+the two requests and the changes are about to be applied against the
+wrong baseline.  It does not loop on `delta.hasMoreChanges`.  It does not
+notice that `delta.destroyed` names objects the client holds.  It does not
 chunk the `/get` calls to `maxObjectsInGet`, so a large delta will
 draw `requestTooLarge`.  It does not handle `cannotCalculateChanges`,
 which means throwing the state away and starting over.  It does not

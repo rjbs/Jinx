@@ -2,43 +2,48 @@
 
 Jinx is a Swift package that keeps a local copy of the JMAP data in one
 account and keeps that copy in sync with the server.  An application
-reads objects from the local copy and writes to the local copy.  Jinx
-carries the writes to the server and the server's changes back, and the
-application never sees a request unless it wants to.
+reads from and writes to the local copy.  Jinx synchronizes changes,
+merging in changes from the server and sending local writes up to it.
+The application layer never sees a JMAP request unless it wants to.
 
-That is the whole pitch, and if you have read RFC 8620 it may sound like
-less than it is.  The protocol gives you `/get`, `/changes`, `/set` and
-`/query`, and each is simple.  What it does not give you is the thing
-that has to remember state between them.  That thing is a JMAP client,
-and this manual is about how Jinx is one.
+JMAP provides all the primitives needed for an efficient sync engine,
+but leaves it to the client developer to understand how to put those
+primitives together.  Jinx does that for you, and provides a record
+synchronization platform to build on.
 
-## What the spec leaves to you
+## What the protocol leaves to the client
 
-RFC 8620 is exact about what crosses the wire and silent about what a
-client keeps.  Every unit of this manual starts from a problem in that
-silence.  Here are the main ones, each with the unit that takes it up.
+RFC 8620 is exact about the wire protocol, but many complications
+emerge when you put the protocol into use, especially in a
+multi-writer scenario.  Here are the main complications, along with
+where you'll find out how Jinx helps you deal with them.
 
-- **A state string is a promise you must keep.**  `Foo/changes` is only
-  useful if you stored the state from last time, applied every change
-  that came back, and never let a crash between those steps leave you
-  believing you are further along than you are.  Units 6 and 8.
-- **`oldState` can disagree with you.**  A `/changes` or `/set` response
-  says what the server's state was when it answered.  If that is not
-  the state you hold, something happened between your requests, and you
-  have to decide what you now believe.  Unit 8.
-- **Your own writes are in flight.**  Between sending a `/set` and
-  reading its response, the server may tell you about the very change
-  you are making, or about a different change to the same object.
-  The client has to tell those apart, and it has to do so while the
-  user keeps editing.  Units 5 and 9.
-- **Other clients write properties you have never heard of.**  If you
-  decode an object into your model and encode the model back, you
-  erase theirs.  Unit 4.
+- **State tracking must be exact.**  `Foo/changes` is only correct if
+  the client stored the state from the last response and applied every
+  change that came with it, and did both as one step.  A crash between
+  the two leaves a client that believes it is further along than it
+  is.  Units 6 and 8.
+- **The server moves between requests.**  A `/changes` or `/set`
+  response reports the state the server was at when it answered.  When
+  that is not the state the client holds, something happened in
+  between, and the client has to decide whether what it just received
+  still applies.  Unit 8.
+- **The client's own writes are in flight.**  Between sending a `/set`
+  and reading its response, a `/changes` in another request, or a
+  `StateChange` on the push channel, can describe the very change the
+  client is making, or a different change to the same object.  The
+  client has to tell those apart, while the user keeps editing.  Units
+  5 and 9.
+- **Objects are shared.**  An update is a patch, and a patch that names
+  a whole map such as `keywords` replaces every entry in it, including
+  the ones another client added.  A client that sends back every
+  property it holds, rather than only the ones it changed, overwrites
+  the server's newer values with its own stale ones.  Unit 4.
 - **A lost response is not a failed request.**  A create whose response
   never arrived may or may not exist on the server.  Sending it again
   may make two.  Unit 9.
-- **The server holds more than you can.**  A mail account does not fit
-  on a phone.  `/query` gives you an ordered list of ids, and
+- **The server holds more than the client can.**  A mail account does
+  not fit on a phone.  `/query` gives an ordered list of ids, and
   `/queryChanges` is optional.  Deciding which objects to hold, when to
   let them go, and how to keep a list current when the server cannot
   calculate changes is the client's problem.  Unit 10.
@@ -50,7 +55,7 @@ Jinx's answers to these are not independent features.  They rest on one
 model of what a synced object is, described in unit 5, and most of the
 rest of the library is consequences of that model.
 
-## The cast
+## Our example applications
 
 Three applications drove the design, and they recur as examples.  They
 are real projects, so some details will lag behind their code; what
@@ -210,11 +215,10 @@ rest of this manual makes it visible.
 
 ## Vocabulary
 
-This manual uses the names the code uses.  A few are worth fixing now,
-since the design document used other words for some of them.
+This manual uses the names the code uses.  The ones that recur most:
 
 - A **synced object** is one JMAP object as Jinx holds it, with its
-  metadata.  The type is `SyncedObject`.  The design called it a cell.
+  metadata.  The type is `SyncedObject`.
 - A **local key** is the stable `Int64` identity Jinx assigns to an
   object the moment it exists locally.  The **id** is the JMAP id,
   which an object may not yet have.  The type is `LocalKey`.
@@ -237,14 +241,8 @@ The [glossary](glossary.md) collects these and the rest.
 - The tests are under `Tests/`, one target per module.  `swift test`
   runs them all, and most units of this manual name a test that shows
   the behavior described.
-- The design is `doc/plan.md`, and it is older than the code.  Where
-  the two disagree this manual follows the code and says so in a
-  callout like this one:
-
-!!! info "Not yet as designed"
-    The plan describes least-recently-used eviction for windowed types
-    and a tracked fetch level per object.  The code evicts immediately
-    when nothing retains an object, and fetches extra properties on
-    demand without recording that it did.  Both are open threads.
+- The design is `doc/plan.md`.  Where it describes something not yet
+  built, the unit concerned says so in a callout headed "Not yet
+  built", with the Loose Thread that tracks it.
 
 Next: [One JSON](02-json.md).

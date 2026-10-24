@@ -28,12 +28,11 @@ The design calls for three tiers.
 The first two exist.  The third, and the data format the second and
 third are meant to share, do not yet.
 
-!!! info "Not yet as designed"
-    The plan expected the script format to surface from writing real
-    tests rather than from designing it first, and that is what has
-    happened: the scripted-server tests are Swift, written against a
-    harness, and the format that would let them be data has not been
-    extracted.  Thread 2026-10-16-4rzk9f.
+!!! info "Not yet built"
+    The scripted-server tests are Swift, written against a harness.
+    The data format that would let the same scenarios run against a
+    reference server, and so let other clients run them, has not been
+    extracted from them yet.  Thread 2026-10-16-4rzk9f.
 
 ## The scripted server
 

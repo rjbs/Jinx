@@ -1,13 +1,13 @@
 # 6. The store
 
-"A state string is a promise you must keep."  `Foo/changes` since
+State tracking must be exact, as unit 1 said.  `Foo/changes` since
 state `s41` returns everything that happened after `s41` and reports
-`s42`.  If you store `s42` and then crash before applying the changes,
-you will never ask for them again, and the objects they described are
-wrong on your device until a full resync.  If you apply the changes
-and crash before storing `s42`, you ask again and apply them twice,
-which is harmless for a sync-in but not for the rebase of a pending
-edit.  The only correct order is neither: the changes and the state go
+`s42`.  A client that stores `s42` and then crashes before applying
+the changes will never ask for them again, and the objects they
+described stay wrong until a full resync.  A client that applies the
+changes and crashes before storing `s42` asks again and applies them
+twice, which is harmless for a sync-in but not for the rebase of a
+pending edit.  The only correct order is neither: the changes and the state go
 into the database in one transaction, or not at all.
 
 That is one of several things the store has to get right, and the
@@ -43,8 +43,8 @@ seven groups.
 - **Blobs**, the index of what is on disk, in unit 11.
 - **Wipe**, which discards everything for an account.
 
-The protocol is public and its stability is part of Jinx's contract,
-decided when the design settled.  No current consumer implements it;
+The protocol is public and its stability is part of Jinx's contract.
+No current consumer implements it;
 all three use the GRDB store that ships with Jinx.  It exists so that
 an app with unusual storage needs could supply its own without forking
 the engine, and so that the engine's tests can be read as a

@@ -70,13 +70,13 @@ the key's number, so the response can be matched to its object
 without a lookup table, and so an object can in principle name a
 pending create by `#jinx42`, the form the RFC provides.
 
-!!! info "Not yet as designed"
+!!! info "Not yet built"
     In principle only.  A write whose value references a pending
     create, of the same type or another, is refused today with
     `crossTypeCreationReference`; nothing rewrites the reference when
-    the real id arrives.  The plan has the design: same-type references
-    within one `/set`, creates ordered across types in one request, and
-    the dependent held back when the create it names fails.  Thread
+    the real id arrives.  Planned: same-type references within one
+    `/set`, creates ordered across types in one request, and the
+    dependent held back when the create it names fails.  Thread
     2026-10-16-ytf6zn.
 
 ## When the send fails

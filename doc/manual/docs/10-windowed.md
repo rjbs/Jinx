@@ -98,13 +98,12 @@ again with `fetchHTMLBodyValues`.  A fetched object stays held only
 while something retains it, so an app that wants the body to survive
 the next pass pins the message.
 
-!!! info "Not yet as designed"
-    The plan has the engine remembering that an object was fetched at
-    the full level, so a later change refetches it the same way, and
-    demoting it to summary before evicting it.  The code records
-    nothing: a changed Email is refetched with the summary properties
-    and the app fetches the body again if it is still open.  Thread
-    2026-10-17-pm2sqs.
+!!! info "Not yet built"
+    Nothing records that an object was fetched at the full level: a
+    changed Email is refetched with the summary properties, and the app
+    fetches the body again if it is still open.  Planned: a fetch level
+    per object, so a later change refetches at the same level, and
+    demotion to summary before eviction.  Thread 2026-10-17-pm2sqs.
 
 ## The windowed pass
 
@@ -158,12 +157,12 @@ plus pending objects of a windowed one.  Every held object of a
 windowed type with an id and no pending change that is not in that
 set is deleted, in the same transaction.
 
-!!! info "Not yet as designed"
-    The plan describes least-recently-read eviction under a count cap,
-    so that an object the user just scrolled past stays a while.  The
-    code evicts the moment nothing retains an object, which is simpler
-    and means an app must pin anything it is still showing.  Thread
-    2026-10-17-2zbr8g.
+!!! info "Not yet built"
+    Eviction is immediate: the moment nothing retains an object it is
+    deleted, which is simple and means an app must pin anything it is
+    still showing.  Planned: least-recently-read eviction under a
+    count cap, so that an object the user just scrolled past stays a
+    while.  Thread 2026-10-17-2zbr8g.
 
 ## Resync and moving between modes
 

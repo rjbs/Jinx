@@ -132,7 +132,7 @@ is `keywords/$seen: true`.
 
 Identity and EmailSubmission round out the set.
 
-!!! info "Not yet as designed"
+!!! info "Not yet built"
     `EmailSubmission/set` takes `onSuccessUpdateEmail` and
     `onSuccessDestroyEmail`, which patch the sent Email in the same
     call.  Jinx's write API has no way to express a `/set` argument
@@ -192,10 +192,10 @@ business.  What ships is reference data, the sync-relevant facts of
 each standard type, and that is the thing a conformance suite can
 check a client against.
 
-!!! info "Not yet as designed"
-    The plan deferred a `@JMAPObject` macro for declaring app-defined
-    types until a consumer, probably Juke declaring Track, feels the
-    pain of writing accessors over JSON by hand.  A descriptor for an
+!!! info "Not yet built"
+    A `@JMAPObject` macro for declaring app-defined types is deferred
+    until a consumer, probably Juke declaring Track, feels the pain of
+    writing accessors over JSON by hand.  A descriptor for an
     app-defined type is a five-line initializer call, as above.
 
 ## Where to look
