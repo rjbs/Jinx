@@ -103,11 +103,11 @@ method call's arguments to an earlier call's response.  Unit 3.
 **Scripted server** (`ScriptedServer`).  The in-process JMAP server
 the engine tests run against.  Unit 13.
 
+**Server version** (`StoredObject.serverVersion`).  The object as the server
+last reported it; `nil` if the server has never seen it.  Unit 5.
+
 **Session** (`Session`).  The decoded session resource, with the
 limits and URL templates.  Unit 3.
-
-**Server version** (`StoredObject.server version`).  The object as the server
-last reported it; `nil` if the server has never seen it.  Unit 5.
 
 **Subscription** (`QuerySubscription`).  A live query the engine keeps
 current for a windowed type; its result is a `SubscriptionResult`.
