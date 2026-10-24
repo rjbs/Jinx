@@ -103,7 +103,11 @@ And it runs only on Apple platforms, iOS 27 and macOS 27 or later.
 
 Jinx is one package with six library modules and a test server.  The
 modules form a stack: each one uses only what sits below it, and each
-lower module is usable without the ones above.
+lower module is usable without the ones above.  Type definitions sit on
+top and belong to the application.  JinxTypes, the sixth module,
+supplies reference definitions for the standard Mail and Tasks types,
+with the facts from their RFCs that are easy to get wrong; an app may
+use them or write its own.
 
 <figure class="jinx-figure">
 <svg viewBox="0 0 760 456" width="760" height="456" role="img" aria-labelledby="stack-title">
@@ -111,12 +115,12 @@ lower module is usable without the ones above.
 <rect class="ext" x="20" y="20" width="460" height="56" rx="4"/>
 <text class="nm" x="250" y="43" text-anchor="middle">Application</text>
 <text class="sub" x="250" y="63" text-anchor="middle">SwiftUI, a CLI, a playback engine: not part of Jinx</text>
-<rect class="blk" x="20" y="92" width="460" height="56" rx="4"/>
-<text class="nm" x="250" y="115" text-anchor="middle">JinxTypes</text>
-<text class="sub" x="250" y="135" text-anchor="middle">sync facts about Mail and Tasks, as data</text>
+<rect class="ext" x="20" y="92" width="460" height="56" rx="4"/>
+<text class="nm" x="250" y="115" text-anchor="middle">Type definitions</text>
+<text class="sub" x="250" y="135" text-anchor="middle">the app's; JinxTypes ships reference descriptors for Mail and Tasks</text>
 <rect class="blk" x="20" y="164" width="460" height="56" rx="4"/>
 <text class="nm" x="250" y="187" text-anchor="middle">Jinx</text>
-<text class="sub" x="250" y="207" text-anchor="middle">SyncEngine: pull, push, writes, subscriptions, blobs, change stream</text>
+<text class="sub" x="250" y="207" text-anchor="middle">SyncEngine: sync, writes, subscriptions, blobs, change stream</text>
 <rect class="blk" x="20" y="236" width="300" height="56" rx="4"/>
 <text class="nm" x="170" y="259" text-anchor="middle">JinxStore</text>
 <text class="sub" x="170" y="279" text-anchor="middle">SyncStore protocol, GRDB implementation</text>
@@ -145,7 +149,7 @@ lower module is usable without the ones above.
 | `JinxPatch` | Diff, apply, rebase, owned properties; pure functions over `JSONValue` | small |
 | `JinxStore` | The `SyncStore` protocol, the records it stores, and `GRDBSyncStore` | medium |
 | `Jinx` | The `SyncEngine` actor: sync-in, sync-out, writes, windowed sync, blobs, the run loop | the largest |
-| `JinxTypes` | Type descriptors for Mail and Tasks | tiny |
+| `JinxTypes` | Reference type descriptors for Mail and Tasks, optional | tiny |
 | `JinxScriptedServer` | A small, correct JMAP server that lives in the test process | medium |
 
 The division is not decoration.  An app that only wants to send a
