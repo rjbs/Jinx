@@ -6,14 +6,14 @@ state `s41` returns everything that happened after `s41` and reports
 you will never ask for them again, and the objects they described are
 wrong on your device until a full resync.  If you apply the changes
 and crash before storing `s42`, you ask again and apply them twice,
-which is harmless for a pull but not for the rebase of a pending
+which is harmless for a sync-in but not for the rebase of a pending
 edit.  The only correct order is neither: the changes and the state go
 into the database in one transaction, or not at all.
 
 That is one of several things the store has to get right, and the
 others are of the same shape.  The pending log and the object it
 describes must never disagree.  Two processes sharing a file must not
-push the same entry twice.  A reader must never see a pass half
+sync out the same entry twice.  A reader must never see a pass half
 applied.  This unit is about the storage layer that makes those
 guarantees, and the schema it keeps them in.
 
@@ -109,7 +109,7 @@ ids without colliding.
 
 And the pending operation is not a column of `jinx_object` at all.  A
 `StoredObject` is read with a `LEFT JOIN` to `jinx_pending`, so the
-`pending` field the engine sees and the log entry the push will claim
+`pending` field the engine sees and the log entry the sync-out will claim
 are the same row and cannot disagree.  The log's `key` column
 references the object with `ON DELETE CASCADE`, so deleting an object
 takes its entry with it.
@@ -119,8 +119,8 @@ takes its entry with it.
 `setPending` deletes any entry for the key and inserts a new one, so
 the entry gets a fresh `seq` and the object moves to the end of the
 log.  That is the mechanism behind the edited-in-flight rule of unit
-5: a push claims entries by `seq`, an edit during the push re-adds the
-entry with a later `seq`, and when the response arrives the push
+5: a sync-out claims entries by `seq`, an edit during the sync-out re-adds the
+entry with a later `seq`, and when the response arrives the sync-out
 confirms the entry it sent and finds the newer one still waiting.
 
 A claim is one SQL statement:
@@ -131,7 +131,7 @@ WHERE account = ? AND (claimed_by IS NULL OR claimed_at < ?)
 ```
 
 Because it is one statement in one transaction, two processes that
-both try to push at the same moment cannot both claim the same entry.
+both try to sync out at the same moment cannot both claim the same entry.
 The second condition handles a process that claimed entries and then
 died: after `claimStaleAfter`, two minutes by default, its claims are
 treated as abandoned and another process may take them.  Claims are
@@ -156,7 +156,7 @@ if !changeSet.isEmpty, let name = configuration.signalName { DarwinNotification.
 ```
 
 The body is a local write, the application of a `/set` response, or
-the application of an entire pull across every type.  Whatever it
+the application of an entire sync-in across every type.  Whatever it
 does, it does in one SQLite transaction along with the journal row
 that describes it.  A reader of the database sees the state before
 the commit or after it.  The state strings advance in the same
@@ -175,9 +175,9 @@ A `ChangeSet` is what one commit changed.
 ```swift
 public struct ChangeSet: Sendable, Hashable, Codable {
   public var accountId: String
-  public var source: Source                       // .local, .push or .pull
+  public var source: Source                       // .local, .syncOut or .syncIn
   public var types: [String: TypeChanges]         // created, updated, destroyed keys; idsAssigned
-  public var failed: [LocalKey: SetError]         // reverted after a permanent push error
+  public var failed: [LocalKey: SetError]         // reverted after a permanent sync-out error
   public var subscriptions: [String]              // whose id list or total changed
   public var blobs: [BlobChange]                  // blob-valued properties that now name a different blob
 }
@@ -200,13 +200,13 @@ make that safe.
 
 1. The file is opened as a `DatabasePool` in WAL mode, so readers do
    not block the writer and transactions are short.
-2. Claims, above, keep the two from pushing the same entry.
+2. Claims, above, keep the two from syncing out the same entry.
 3. Every commit appends to the journal and posts a Darwin
    notification named for the file.  The other engine wakes, reads the
    journal rows after the last one it saw, skips any it committed
    itself, and emits the rest on its own change stream.  Both
    processes see identical change sets.
-4. A pull in one process skips any object whose entry is claimed by
+4. A sync-in in one process skips any object whose entry is claimed by
    the other, as unit 5 described, and leaves it for that process to
    reconcile.
 
@@ -230,7 +230,7 @@ WHERE account = ? AND type = 'Task'
 ```
 
 Reads of this kind must stay read-only.  A write that bypasses the
-engine leaves no pending entry, so it would never be pushed, and it
+engine leaves no pending entry, so it would never be synced out, and it
 could not be rebased.
 
 ## Where to look
@@ -241,7 +241,7 @@ could not be rebased.
 - `swift test --filter JinxStoreTests`.  `pendingLogReplacesAndOrders`
   is the moving-to-the-end rule; `claimsSkipFreshClaimsAndTakeStaleOnes`
   is the claim statement; `twoStoresOnOneFileSeeEachOther` opens the
-  same file twice.  In `JinxTests`, `twoProcessesPushWithoutSendingTwice`
+  same file twice.  In `JinxTests`, `twoProcessesSyncOutWithoutSendingTwice`
   runs two engines against one store and one server.
 
 Next: [Describing a type](07-type-descriptors.md).

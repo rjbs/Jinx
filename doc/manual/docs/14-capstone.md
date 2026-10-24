@@ -49,8 +49,8 @@ try await engine.sync()
 let inbox = try await engine.objects(type: "Mailbox").first { $0.value["role"] == "inbox" }!
 ```
 
-That pass made three requests.  The push had nothing to send.  The
-pull sorted the types: Mailbox has no state and is full, so it went
+That pass made three requests.  The sync-out had nothing to send.  The
+sync-in sorted the types: Mailbox has no state and is full, so it went
 through initial sync, which is one `Mailbox/get` with `ids: null`
 since a mailbox list is never too large.  Thread and Email are
 windowed and had no state, so one request asked each for an empty
@@ -69,7 +69,7 @@ nothing to fill and nothing to evict.
 ["Email/changes",  {"accountId": "a1", "sinceState": "e100", "maxChanges": 256}, "c1"]
 ```
 
-The change set from this pass has source `pull` and created keys for
+The change set from this pass has source `syncIn` and created keys for
 every Mailbox.  The app can draw the folder list.
 
 ## Subscribing
@@ -124,7 +124,7 @@ the Threads, because the Email descriptor declares `threadId` as a
 reference and nothing holds those Threads yet.  `mailboxIds` is also
 a reference, but every Mailbox is already held.
 
-The change set has source `pull`, fifty created Email keys, as many
+The change set has source `syncIn`, fifty created Email keys, as many
 created Thread keys, and `subscriptions: ["inbox"]`.  Any consumer
 watching the stream reads the window:
 
@@ -165,7 +165,7 @@ The write path applies the patch to the local value, sees that it
 differs from the snapshot, appends a pending `update` entry, commits
 a change set with source `local`, and requests a pass.  The UI
 updates at once from that change set, with `pending` set on the
-object.  After the debounce the push claims the entry, diffs snapshot
+object.  After the debounce the sync-out claims the entry, diffs snapshot
 to local, and sends:
 
 ```json
@@ -176,7 +176,7 @@ to local, and sends:
 ```
 
 The response's `updated` confirms it; the snapshot becomes the sent
-value, the entry is cleared, and the change set with source `push`
+value, the entry is cleared, and the change set with source `syncOut`
 names the key.  Because this process changed an Email, the next
 windowed round re-runs the inbox query even though `Email/changes`
 will report only our own change, in case the server's answer to the
@@ -191,7 +191,7 @@ try await engine.update(email.key, patch: [
 ])
 ```
 
-Same path, one `/set` with two patch entries.  On the next pull the
+Same path, one `/set` with two patch entries.  On the next sync-in the
 inbox query no longer lists the message, the subscription result
 changes, and the message is evicted at the end of the pass, unless
 it is still pinned because the user is still looking at it.  The
@@ -202,11 +202,11 @@ change set names the subscription and, if evicted, the destroyed key.
 Nothing above assumed a network at the time of the write.  With the
 radio off, the reads, the pin and the two updates all succeed against
 the local store; the two updates collapse into one entry, since they
-touch the same object; the push fails with a transport error, the
+touch the same object; the sync-out fails with a transport error, the
 claim is released, and the run loop backs off.  When the network
-returns, a pass pushes one `Email/set` with three patch entries and
-then pulls.  If another client marked the same message read in the
-meantime, the pull rebases: `keywords/$seen` is pending locally and
+returns, a pass syncs out one `Email/set` with three patch entries and
+then syncs in.  If another client marked the same message read in the
+meantime, the sync-in rebases: `keywords/$seen` is pending locally and
 wins, the server's value for it is the same anyway, and every other
 property takes the server's.
 

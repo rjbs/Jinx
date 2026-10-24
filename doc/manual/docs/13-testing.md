@@ -1,7 +1,7 @@
 # 13. Testing
 
 A sync engine's bugs live in sequences: a change that arrives while a
-push is in flight, a response that was applied but never received, a
+sync-out is in flight, a response that was applied but never received, a
 state the server forgot.  None of those can be tested against canned
 responses, because a canned response is the test author's guess at
 what a server would say, and the guess is what is usually wrong.  Jinx
@@ -52,7 +52,7 @@ from its `Limits`, serves blobs with range requests, and delivers
 
 A test drives it two ways.  The first is directly: `create`, `update`
 and `destroy` change the server's data as another client would, and
-each one is a state transition the engine will see on its next pull.
+each one is a state transition the engine will see on its next sync-in.
 The second is by **faults**, one-shot misbehaviors consumed in order,
 for the things a correct server never does.
 
@@ -91,7 +91,7 @@ lost-create test from unit 9, in full:
   h.server.enqueue(.loseResponse)
   await #expect(throws: SyncError.self) { try await h.engine.sync() }
   #expect(h.server.objects("Task").count == 1, "the server applied the create")
-  // The pull that follows the failed push already adopts it by uid.
+  // The sync-in that follows the failed sync-out already adopts it by uid.
   let adopted = try #require(try await h.engine.object(key: key))
   #expect(adopted.id == h.server.objects("Task").keys.first)
   #expect(adopted.pending == nil)
@@ -99,7 +99,7 @@ lost-create test from unit 9, in full:
   h.server.clearRequests()
   try await h.engine.sync()
   #expect(h.server.objects("Task").count == 1, "no duplicate")
-  #expect(methodNames(h.server).first == "Task/changes", "the pass pulled before pushing")
+  #expect(methodNames(h.server).first == "Task/changes", "the pass synced in before syncing out")
   #expect(h.server.calls(named: "Task/set").isEmpty)
 }
 ```
@@ -108,8 +108,8 @@ Read it as a script.  Configure the server; sync once to get a state;
 create locally; arrange for the next reply to be lost; sync, and
 expect the pass to fail.  Then assert what the server has, what the
 client believes, and, after another pass, what the client sent.  The
-last two assertions are about the wire: the pass pulled before it
-pushed, and no `/set` went at all.  Nothing in the test says what any
+last two assertions are about the wire: the pass synced in before it
+synced out, and no `/set` went at all.  Nothing in the test says what any
 response contained.
 
 ## The hard cases
@@ -125,9 +125,9 @@ and each has a test.
 | A lost create response | `lostCreateResponseIsAdoptedByIdentity` |
 | A create that collides on identity | `duplicateIdentityOnCreateAdoptsTheExistingObject` |
 | A permanent error on one object of a batch | `permanentErrorRevertsOnlyThatObject` |
-| A transport failure mid-push | `retryableFailureKeepsEntriesAndReleasesClaims` |
+| A transport failure mid-sync-out | `retryableFailureKeepsEntriesAndReleasesClaims` |
 | A server change to an object with a pending edit | `rebaseKeepsPendingPropertyAndTakesTheRest` |
-| Two processes pushing at once | `twoProcessesPushWithoutSendingTwice` |
+| Two processes syncing out at once | `twoProcessesSyncOutWithoutSendingTwice` |
 | A window on a server without `canCalculateChanges` | `windowFollowsServerChanges` |
 | A window on a server with it | `queryChangesIsUsedWhenTheServerCanCalculate` |
 | A changed blob id | `supersededBlobIsReportedOnPullAndGoneOnDownloadTriggersRefetch` |
@@ -141,7 +141,7 @@ and the test is thread 2026-10-17-ncrmkw.
 
 ```
 swift test                                   # everything
-swift test --filter JinxTests.PushTests      # one suite
+swift test --filter JinxTests.SyncOutTests      # one suite
 swift test --filter lostCreateResponse       # one test, by name fragment
 ```
 

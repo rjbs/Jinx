@@ -139,7 +139,7 @@ lower module is usable without the ones above.
 | `JinxWire` | The session, request building, back-references, typed errors, the URLSession transport, EventSource | medium |
 | `JinxPatch` | Diff, apply, rebase, owned properties; pure functions over `JSONValue` | small |
 | `JinxStore` | The `SyncStore` protocol, the records it stores, and `GRDBSyncStore` | medium |
-| `Jinx` | The `SyncEngine` actor: pull, push, writes, windowed sync, blobs, the run loop | the largest |
+| `Jinx` | The `SyncEngine` actor: sync-in, sync-out, writes, windowed sync, blobs, the run loop | the largest |
 | `JinxTypes` | Type descriptors for Mail and Tasks | tiny |
 | `JinxScriptedServer` | A small, correct JMAP server that lives in the test process | medium |
 
@@ -191,18 +191,18 @@ call, no `/set`, no response handling.  The app names the account and
 the types, opens a database, and says what it wants to happen.
 
 What happens is this.  The run loop fetches the session resource and
-runs a first pass.  There is nothing to push.  Task has no stored
-state, so the pull is an initial sync: page through `Task/query` and
+runs a first pass.  There is nothing to sync out.  Task has no stored
+state, so the sync-in is an initial sync: page through `Task/query` and
 fetch the pages with `Task/get`, committing each chunk as it lands and
 reporting it on the change stream, until the state string from the
 last `/get` can be stored and `Task/changes` can take over.  The create
 writes a row to the local store, appends a pending entry to a log,
 emits a change set with a `local` source, and asks the run loop for a
-pass.  After a short debounce, the push reads the entry, builds
+pass.  After a short debounce, the sync-out reads the entry, builds
 `Task/set` with one create, sends it, and on success writes the server's
 id into the row and emits a change set that says so.  If the device is
 offline, the entry waits.  If the user edits the task three times
-before the push, one patch goes.  If the server has changed the task in
+before the sync-out, one patch goes.  If the server has changed the task in
 the meantime, the pending edit is rebased onto what the server sent.
 
 None of that is visible in the code above, which is the point.  The
@@ -220,7 +220,7 @@ since the design document used other words for some of them.
   which an object may not yet have.  The type is `LocalKey`.
 - A **pending entry** is the record that an object has a local change
   the server has not accepted.  There is at most one per object.
-- A **sync pass**, or just `sync()`, is one push followed by one pull.
+- A **sync pass**, or just `sync()`, is one sync-out followed by one sync-in.
 - A **change set** is what the engine emits after each commit: which
   objects changed, from what source.  The type is `ChangeSet`.
 - A **type descriptor** is what an app tells Jinx about a type.  The

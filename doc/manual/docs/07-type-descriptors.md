@@ -24,8 +24,8 @@ each request.
 is held locally, or only what subscriptions, pins, pending changes and
 references retain.  Unit 10.
 
-**`dependsOn`**: the types this one must sync after.  A pull fetches
-types in dependency order within one request, and a push sends its
+**`dependsOn`**: the types this one must sync after.  A sync-in fetches
+types in dependency order within one request, and a sync-out sends its
 `/set` calls in the same order.  Juke's Track must precede Playlist
 because a playlist is a server-evaluated query over tracks.
 
@@ -55,7 +55,7 @@ finds an object by it.  This is what makes a create idempotent, in
 unit 9.  Task has `uid`; Email has nothing of the kind, and accepts
 the duplicate risk.
 
-**`blobProperties`**: properties that hold blob ids.  When a pull
+**`blobProperties`**: properties that hold blob ids.  When a sync-in
 changes one, the change set reports the old and new ids so that the
 app's blob policy can act.  Juke's retagging case, in unit 11.
 
@@ -174,12 +174,12 @@ sort: every type follows the types it depends on, and the order is
 otherwise as given.  A type that depends on one not configured is
 `SyncError.unknownType`, and a cycle is `SyncError.dependencyCycle`.
 The engine sorts once, at initialization, and uses the result for
-every pull and push.
+every sync-in and sync-out.
 
 Mutual references are not cycles.  Email depends on Thread and Thread
 references Email, which is fine, because `references` is about
 retention and `dependsOn` is about order.  What makes the mutual
-reference safe is the rule from unit 6 that a pull applies every
+reference safe is the rule from unit 6 that a sync-in applies every
 type in one transaction: a reader sees both sides of the reference or
 neither, never one.
 
@@ -210,4 +210,4 @@ check a client against.
   veto; and `mailScenarioAgainstTheScriptedServer` runs the Mail
   descriptors through a windowed sync against the test server.
 
-Next: [Pull](08-pull.md).
+Next: [Sync in](08-sync-in.md).

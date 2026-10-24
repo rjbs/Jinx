@@ -56,8 +56,8 @@ nav:
   - 5. The synced object: 05-synced-object.md
   - 6. The store: 06-store.md
   - 7. Describing a type: 07-type-descriptors.md
-  - 8. Pull: 08-pull.md
-  - 9. Push: 09-push.md
+  - 8. Sync in: 08-sync-in.md
+  - 9. Sync out: 09-sync-out.md
   - 10. Windowed sync: 10-windowed.md
   - 11. Blobs: 11-blobs.md
   - 12. Running the engine: 12-running.md

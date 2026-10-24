@@ -61,19 +61,19 @@ Every synced object is a cell with three parts and a possible log entry.
 - **Fetch level.**  Which property set the local copy holds: summary or
   full.  See "Partial fetch".
 - **Pending entry**, at most one per object, in an ordered log: create,
-  update or destroy, plus a claim (process id and time) while a push is
+  update or destroy, plus a claim (process id and time) while a sync-out is
   in flight.  The entry stores no patch.
 
-The patch is computed at push time as the diff between the server
+The patch is computed at sync-out time as the diff between the server
 snapshot and the local value.  Several edits collapse into one patch; an
 edit that restores the server value produces an empty patch and drops
 out; undo is just another edit.  This is NerfJournal's design, taken
 from Fastmail's offline caching proxy, and it is adopted whole.
 
-On pull, an object with a pending entry is **rebased**: compute the
+On sync-in, an object with a pending entry is **rebased**: compute the
 patch from the old snapshot to the local value, apply it to the fetched
 object, and store the fetched object as the new snapshot.  A pending
-local property wins until it is pushed; every other property takes the
+local property wins until it is synced out; every other property takes the
 server's value.  If the rebased value equals the fetched object, the
 server already has the change and the entry is dropped.  Rebase works at
 JSON patch-path granularity, so it needs no per-type code, and it is the
@@ -151,12 +151,12 @@ be demoted to summary before it is evicted.
 
 ### Sync order between types
 
-A type descriptor may declare that it depends on other types.  Pulls
-fetch in dependency order within one JMAP request, and pushes send in
-that order too.  This satisfies Juke's Track-before-Playlist rule.  It
+A type descriptor may declare that it depends on other types.  A sync-in
+fetches in dependency order within one JMAP request, and a sync-out sends
+in that order too.  This satisfies Juke's Track-before-Playlist rule.  It
 does not by itself give the mail document's "consistent views", because
 Email and Thread reference each other.  That comes from applying every
-type's changes from one pull pass in a single store transaction, so a
+type's changes from one sync-in pass in a single store transaction, so a
 reader sees the state before the pass or after it, never between.  A
 dangling reference, an id the store does not hold, is allowed at the
 data level and is not an error; the next pass or a query refresh
@@ -171,10 +171,10 @@ when push is unavailable, a connectivity change, or a local write.  All
 triggers are debounced into one pass, and at most one pass runs per
 process at a time.
 
-**Push first, then pull**, always.  A resync should run against a server
+**Sync out first, then sync in**, always.  A resync should run against a server
 that already has the client's changes.
 
-### Push
+### Sync out
 
 1. Claim unclaimed log entries in one transaction.  Read the claimed
    entries in order and snapshot each object's local value and server
@@ -203,21 +203,21 @@ that already has the client's changes.
    server-set properties returned, delete rows for `destroyed` and for
    `notDestroyed` with `notFound`, classify everything else as an error
    (below), advance the type's state only if `oldState` matches the
-   stored one and otherwise flag a pull, and delete the sent entries.
+   stored one and otherwise flag a sync-in, and delete the sent entries.
    An entry re-added by an edit during the request has a later sequence
-   number and is left for the next push.
+   number and is left for the next sync-out.
 5. Repeat while unclaimed entries remain.
 
-### Pull
+### Sync in
 
 1. One request: for each type in dependency order, `/changes` with the
    stored state, then back-referenced `/get` calls for created and
    updated ids (full types), or `/get` for updated held ids plus a
    `/queryChanges` or `/query` per subscription and `/get` for ids not
    held (windowed types).  Chunk `/get` calls to `maxObjectsInGet`.
-2. Discard the response and pull again if any `oldState` does not match.
+2. Discard the response and sync in again if any `oldState` does not match.
 3. Apply in one transaction across all types: insert new objects, replace
-   unchanged ones, rebase pending ones, defer any object whose push is in
+   unchanged ones, rebase pending ones, defer any object whose sync-out is in
    flight in another process, remove destroyed objects along with their
    pending entries, update subscription id lists, advance states, and
    compute the change set.
@@ -237,7 +237,7 @@ reader's point of view, because the apply is one transaction.
 ### Push notifications
 
 An EventSource connection with reconnect and backoff, with a polling
-interval as the fallback.  A `StateChange` sets a pull-needed flag per
+interval as the fallback.  A `StateChange` sets a needs-sync-in flag per
 type; the pass runs after a short quiet period.  Only one process per
 database holds the connection, chosen by the app.  iOS background
 refresh is the app's job, through the same "run a pass" entry point.
@@ -249,7 +249,7 @@ update by id, destroy by id, and a transaction that groups any number
 of these so a bulk operation such as NerfJournal's sweep becomes one
 log batch and one `/set` per type.  Creates return a stable local key
 immediately; the JMAP id arrives through the change stream when the
-push succeeds.
+sync-out succeeds.
 
 An update takes one of three forms: a patch, applied to the current
 local JSON; a closure that mutates the current local JSON in place; or
@@ -317,7 +317,7 @@ own policy.
 - Download uses range requests and resumes partial files, which is safe
   because blobs are immutable.  Upload returns the blobId for use in a
   later create.
-- A type descriptor declares which properties hold blobIds.  When a pull
+- A type descriptor declares which properties hold blobIds.  When a sync-in
   changes one, the change set carries a blob-superseded event with the
   old and new ids, and the app's policy decides whether to re-pin.  This
   is Juke's retagging case.
@@ -357,7 +357,7 @@ in one call, for apps small enough to filter in memory.  Every read
 returns the local value with its sync metadata: JMAP id if known,
 pending state, and last error.  Beyond that, queries are the app.s
 business.  The engine also exposes a status value for a settings pane:
-connected or offline, last pull, pending count, and per-object errors.
+connected or offline, last sync-in, pending count, and per-object errors.
 
 **Change stream.**  An `AsyncStream` of change sets, emitted after each
 commit.  Each commit also appends its change set to a journal table and
@@ -463,7 +463,7 @@ Three tiers, sharing one script format wherever two tiers can.
 The hard cases the mail document lists are the first scripts: lost or
 invalid state, changes arriving mid-sync, destroy and recreate, an Email
 moving between Mailboxes, interrupted syncs.  To those add: a lost create
-response, a push and pull racing in two processes, a changed blobId, and
+response, a sync-out and sync-in racing in two processes, a changed blobId, and
 a query subscription on a server without `canCalculateChanges`.
 
 Scripts never contain canned responses.  A script step is one of four
@@ -490,7 +490,7 @@ Each phase ends with something a consumer can use.
    except CI, which waits for a remote.
 1. **JinxWire and JinxPatch** with unit tests.  NerfJournal can start
    consuming these for its codec work.  Done 2026-10-17.
-2. **SyncStore, the engine in full mode, GRDBSyncStore**: push, pull,
+2. **SyncStore, the engine in full mode, GRDBSyncStore**: sync-out, sync-in,
    resync, state handling, EventSource, error classification, claims.
    This completes NerfJournal's needs and Juke's metadata sync.  Done
    2026-10-17, including the run loop and cross-process delivery; the

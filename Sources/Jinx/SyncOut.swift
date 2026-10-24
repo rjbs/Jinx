@@ -5,7 +5,7 @@ import JinxStore
 import JinxWire
 
 /// One claimed log entry with the object as it stood when claimed.
-struct PushItem: Sendable {
+struct SyncOutItem: Sendable {
   var entry: PendingEntry
   var object: StoredObject
 }
@@ -15,7 +15,7 @@ struct PushItem: Sendable {
 struct SetBatch: Sendable {
   var type: String
   var callId: String
-  var items: [PushItem]
+  var items: [SyncOutItem]
   var sent: [LocalKey: JSONValue]
 }
 
@@ -23,7 +23,7 @@ extension SyncEngine {
   /// Sends every pending change, in log order, grouped by type in
   /// dependency order, until the log is empty or something needs a
   /// retry.
-  func push() async throws {
+  func syncOut() async throws {
     let session = try await currentSession()
     for _ in 0..<20 {
       let items = try await claimItems()
@@ -33,22 +33,22 @@ extension SyncEngine {
       let shouldContinue = try await sendAndApply(batches, session: session)
       if !shouldContinue { break }
     }
-    status.lastPush = Date()
+    status.lastSyncOut = Date()
   }
 
-  private func claimItems() async throws -> [PushItem] {
+  private func claimItems() async throws -> [SyncOutItem] {
     let accountId = accountId
     let processId = configuration.processId
     let staleAfter = configuration.claimStaleAfter
     return try await store.write { tx in
       let entries = try tx.claimPending(accountId: accountId, processId: processId, now: Date(), staleAfter: staleAfter)
-      var items: [PushItem] = []
+      var items: [SyncOutItem] = []
       for entry in entries {
         guard let object = try tx.object(key: entry.key) else {
           try tx.clearPending(key: entry.key)
           continue
         }
-        items.append(PushItem(entry: entry, object: object))
+        items.append(SyncOutItem(entry: entry, object: object))
       }
       return items
     }
@@ -57,8 +57,8 @@ extension SyncEngine {
   /// Turns claimed items into `/set` calls.  Updates whose diff is
   /// empty are dropped here, and destroys of never-sent objects are
   /// resolved locally.
-  private func buildBatches(_ items: [PushItem], session: Session) throws -> [SetBatch] {
-    var byType: [String: [PushItem]] = [:]
+  private func buildBatches(_ items: [SyncOutItem], session: Session) throws -> [SetBatch] {
+    var byType: [String: [SyncOutItem]] = [:]
     for item in items { byType[item.object.type, default: []].append(item) }
     let maxInSet = session.core?.maxObjectsInSet ?? 128
     var batches: [SetBatch] = []
@@ -144,9 +144,9 @@ extension SyncEngine {
       try await releaseClaims()
       if batches.contains(where: { $0.items.contains { $0.entry.operation == .create } }) {
         // The server may have applied the creates before the response
-        // was lost.  The next pass pulls first so that objects with a
+        // was lost.  The next pass syncs in first so that objects with a
         // client identity get adopted rather than created twice.
-        reconcileBeforePush = true
+        reconcileBeforeSyncOut = true
       }
       switch Classification.classify(error) {
       case .retryable, .tooLarge:
@@ -163,7 +163,7 @@ extension SyncEngine {
       try await adoptByIdentity(key: key, type: value.type, identity: value.identity, value: value.value)
     }
     if outcome.retryable {
-      throw SyncError.retryable(status.lastFailure ?? "retryable push failure")
+      throw SyncError.retryable(status.lastFailure ?? "retryable sync-out failure")
     }
     return true
   }
@@ -182,7 +182,7 @@ extension SyncEngine {
   struct ApplyOutcome: Sendable {
     var retryable = false
     var adoptByIdentity: [LocalKey: AdoptRequest] = [:]
-    var pullNeeded: Set<String> = []
+    var needsSyncIn: Set<String> = []
     var setChunk: [String: Int] = [:]
     var dirtyTypes: Set<String> = []
     var failure: String?
@@ -235,7 +235,7 @@ extension SyncEngine {
             } else if let error = set.notCreated[key.creationId] {
               if error.type == SetError.alreadyExists, let existingId = error.existingId {
                 try Self.confirmCreate(item, id: existingId, serverSet: [:], sent: batch.sent[key], in: tx, changeSet: &changeSet)
-                outcome.pullNeeded.insert(batch.type)
+                outcome.needsSyncIn.insert(batch.type)
               } else if let identity = descriptor.clientIdentity,
                         error.type == SetError.invalidProperties,
                         error.properties?.contains(identity.property) == true,
@@ -266,7 +266,7 @@ extension SyncEngine {
                 outcome.failure = "\(batch.type) update: \(error.type)"
               } else {
                 try Self.revert(item, error: error, in: tx, changeSet: &changeSet)
-                if error.type == SetError.notFound { outcome.pullNeeded.insert(batch.type) }
+                if error.type == SetError.notFound { outcome.needsSyncIn.insert(batch.type) }
               }
             } else {
               try Self.releaseItem(item, in: tx)
@@ -313,14 +313,14 @@ extension SyncEngine {
           if stored == set.oldState {
             try tx.setState(set.newState, accountId: accountId, type: batch.type)
           } else {
-            outcome.pullNeeded.insert(batch.type)
+            outcome.needsSyncIn.insert(batch.type)
           }
         }
       }
       return outcome
-    }, source: .push)
+    }, source: .syncOut)
 
-    pullNeeded.formUnion(outcome.pullNeeded)
+    needsSyncIn.formUnion(outcome.needsSyncIn)
     subscriptionsDirty.formUnion(outcome.dirtyTypes)
     for (type, chunk) in outcome.setChunk { setChunk[type] = chunk }
     if let failure = outcome.failure { status.lastFailure = failure }
@@ -333,7 +333,7 @@ extension SyncEngine {
     for item in batch.items { try releaseItem(item, in: tx) }
   }
 
-  private static func releaseItem(_ item: PushItem, in tx: Store.Transaction) throws {
+  private static func releaseItem(_ item: SyncOutItem, in tx: Store.Transaction) throws {
     // Only this item's claim; a re-added entry (edited in flight) has a
     // new seq and no claim already.
     if let entry = try tx.pending(key: item.object.key), entry.seq == item.entry.seq {
@@ -342,13 +342,13 @@ extension SyncEngine {
   }
 
   /// Whether the object was edited while its entry was in flight.
-  private static func editedInFlight(_ item: PushItem, in tx: Store.Transaction) throws -> Bool {
+  private static func editedInFlight(_ item: SyncOutItem, in tx: Store.Transaction) throws -> Bool {
     guard let entry = try tx.pending(key: item.object.key) else { return false }
     return entry.seq != item.entry.seq
   }
 
   private static func confirmCreate(
-    _ item: PushItem,
+    _ item: SyncOutItem,
     id: String,
     serverSet: JSONValue,
     sent: JSONValue?,
@@ -380,7 +380,7 @@ extension SyncEngine {
   }
 
   private static func confirmUpdate(
-    _ item: PushItem,
+    _ item: SyncOutItem,
     serverSet: JSONValue,
     sent: JSONValue?,
     in tx: Store.Transaction,
@@ -407,7 +407,7 @@ extension SyncEngine {
 
   /// A permanent failure: revert this object alone to its snapshot,
   /// unless it was edited in flight, and record the error.
-  private static func revert(_ item: PushItem, error: SetError, in tx: Store.Transaction, changeSet: inout ChangeSet) throws {
+  private static func revert(_ item: SyncOutItem, error: SetError, in tx: Store.Transaction, changeSet: inout ChangeSet) throws {
     guard var object = try tx.object(key: item.object.key) else { return }
     object.lastError = error
     if try editedInFlight(item, in: tx) {
@@ -443,7 +443,7 @@ extension SyncEngine {
         try tx.update(object)
         try tx.clearPending(key: key)
         changeSet.failed[key] = object.lastError!
-      }, source: .push)
+      }, source: .syncOut)
       return
     }
     try await commit({ tx, changeSet in
@@ -455,7 +455,7 @@ extension SyncEngine {
       try tx.setPending(key: key, operation: .update)
       changeSet.noteIdAssigned(id, to: key, type: type)
       changeSet.noteUpdated(key, type: type)
-    }, source: .push)
-    pullNeeded.insert(type)
+    }, source: .syncOut)
+    needsSyncIn.insert(type)
   }
 }

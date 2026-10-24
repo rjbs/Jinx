@@ -7,7 +7,7 @@ import JinxWire
 import JinxScriptedServer
 @testable import Jinx
 
-@Test func createIsPushedAndGetsAnId() async throws {
+@Test func createIsSyncedOutAndGetsAnId() async throws {
   let h = try Harness()
   try await h.engine.sync()
   let key = try await h.engine.create("Thing", ["n": 1])
@@ -23,12 +23,12 @@ import JinxScriptedServer
   #expect(h.server.object("Thing", id) == ["id": .string(id), "n": 1])
   #expect(try await h.stored(key)?.snapshot == object.value)
   #expect(try await h.pending() == [])
-  let pushed = try #require(try await h.journal().first { $0.source == .push })
-  #expect(pushed.types["Thing"]?.idsAssigned == [key: id])
+  let syncedOut = try #require(try await h.journal().first { $0.source == .syncOut })
+  #expect(syncedOut.types["Thing"]?.idsAssigned == [key: id])
   #expect(methodNames(h.server).first == "Thing/set")
   #expect(try await h.engine.state(of: "Thing") == h.server.state(of: "Thing"), "the set's newState advanced the stored state")
   let gets = h.server.resolvedCalls(named: "Thing/get")
-  #expect(gets.allSatisfy { $0.arguments["ids"] == [] }, "the pull after the push had nothing to fetch")
+  #expect(gets.allSatisfy { $0.arguments["ids"] == [] }, "the sync-in after the sync-out had nothing to fetch")
 }
 
 @Test func updateSendsOnlyTheDiffAndKeepsForeignProperties() async throws {
@@ -93,7 +93,7 @@ import JinxScriptedServer
   #expect(h.server.calls(named: "Thing/set").isEmpty)
 }
 
-@Test func destroyOfSentObjectIsPushed() async throws {
+@Test func destroyOfSentObjectIsSyncedOut() async throws {
   let h = try Harness()
   let id = h.server.create("Thing", ["n": 1])
   try await h.engine.sync()
@@ -103,7 +103,7 @@ import JinxScriptedServer
   try await h.engine.sync()
   #expect(try await h.engine.object(key: key) == nil)
   #expect(h.server.object("Thing", id) == nil)
-  #expect(try await h.journal().last { $0.source == .push }?.types["Thing"]?.destroyed == [key])
+  #expect(try await h.journal().last { $0.source == .syncOut }?.types["Thing"]?.destroyed == [key])
 }
 
 @Test func bulkWritesBecomeOneSet() async throws {
@@ -137,7 +137,7 @@ import JinxScriptedServer
   h.server.enqueue(.transportFailure)
   await #expect(throws: SyncError.self) { try await h.engine.sync() }
 
-  // The push failed, so the next pass pulls the server's change under
+  // The sync-out failed, so the next pass syncs in the server's change under
   // the pending edit.
   h.server.enqueue(.methodError(method: "Thing/set", MethodError(type: MethodError.serverUnavailable)))
   await #expect(throws: SyncError.self) { try await h.engine.sync() }
@@ -172,7 +172,7 @@ import JinxScriptedServer
   h.server.enqueue(.loseResponse)
   await #expect(throws: SyncError.self) { try await h.engine.sync() }
   #expect(h.server.objects("Task").count == 1, "the server applied the create")
-  // The pull that follows the failed push already adopts it by uid.
+  // The sync-in that follows the failed sync-out already adopts it by uid.
   let adopted = try #require(try await h.engine.object(key: key))
   #expect(adopted.id == h.server.objects("Task").keys.first)
   #expect(adopted.pending == nil)
@@ -180,7 +180,7 @@ import JinxScriptedServer
   h.server.clearRequests()
   try await h.engine.sync()
   #expect(h.server.objects("Task").count == 1, "no duplicate")
-  #expect(methodNames(h.server).first == "Task/changes", "the pass pulled before pushing")
+  #expect(methodNames(h.server).first == "Task/changes", "the pass synced in before syncing out")
   #expect(h.server.calls(named: "Task/set").isEmpty)
 }
 
@@ -189,7 +189,7 @@ import JinxScriptedServer
   h.server.configure("Task", .init(uniqueProperty: "uid"))
   let existing = h.server.create("Task", ["uid": "u1", "title": "server"])
   let key = try await h.engine.create("Task", ["uid": "u1", "title": "local"])
-  // Push runs before pull, so the create collides.
+  // Sync-out runs before sync-in, so the create collides.
   try await h.engine.sync()
   let object = try #require(try await h.engine.object(key: key))
   #expect(object.id == existing)
@@ -220,8 +220,8 @@ import JinxScriptedServer
   let objectB = try #require(try await h.engine.object(key: keyB))
   #expect(objectB.value["n"] == 20)
   #expect(objectB.pending == nil)
-  let pushed = try #require(try await h.journal().first { $0.source == .push })
-  #expect(pushed.failed[keyA]?.type == "forbidden")
+  let syncedOut = try #require(try await h.journal().first { $0.source == .syncOut })
+  #expect(syncedOut.failed[keyA]?.type == "forbidden")
 }
 
 @Test func retryableFailureKeepsEntriesAndReleasesClaims() async throws {
@@ -271,7 +271,7 @@ import JinxScriptedServer
   await #expect(throws: SyncError.self) { try await h.engine.update(key, patch: ["n": 1]) }
 }
 
-@Test func twoProcessesPushWithoutSendingTwice() async throws {
+@Test func twoProcessesSyncOutWithoutSendingTwice() async throws {
   let h = try Harness(processId: "app")
   try await h.engine.sync()
   let cli = try h.anotherProcess("cli")

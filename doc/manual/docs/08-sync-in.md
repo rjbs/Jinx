@@ -1,23 +1,23 @@
-# 8. Pull
+# 8. Sync in
 
-Unit 3 ended with a pull assembled by hand and a list of what it did
+Unit 3 ended with a sync-in assembled by hand and a list of what it did
 not do: check `oldState`, loop on `hasMoreChanges`, handle destroyed
 ids, chunk the fetches, survive `cannotCalculateChanges`, notice
-pending edits, and store anything.  This unit is the engine's pull,
+pending edits, and store anything.  This unit is the engine's sync-in,
 which does all of them, and it is best read as that list worked
 through in order.
 
 ## A pass
 
-`sync()` is one pass, and a pass is a push followed by a pull.  The
-order is deliberate: a pull that runs against a server that already
-has the client's changes has less to rebase.  A push that fails for a
-retryable reason does not skip the pull.  The pending entries are
-kept, they will rebase onto whatever the pull brings, and the app gets
-fresh data while its writes wait.  The push's failure is rethrown
-after the pull so the run loop can back off.
+`sync()` is one pass, and a pass is a sync-out followed by a sync-in.  The
+order is deliberate: a sync-in that runs against a server that already
+has the client's changes has less to rebase.  A sync-out that fails for a
+retryable reason does not skip the sync-in.  The pending entries are
+kept, they will rebase onto whatever the sync-in brings, and the app gets
+fresh data while its writes wait.  The sync-out's failure is rethrown
+after the sync-in so the run loop can back off.
 
-The pull itself begins by sorting the configured types, already in
+The sync-in itself begins by sorting the configured types, already in
 dependency order, into three groups: windowed types, which unit 10
 takes up; full types with no stored state, which need an initial
 sync; and full types with a state, which get `/changes`.
@@ -71,7 +71,7 @@ happened.
   about a different baseline than the one we hold.  This type's
   results are discarded and it stays in the round for another try.
   After five such rounds the pass gives up as retryable, with the
-  message "state kept moving during pull", on the theory that
+  message "state kept moving during sync-in", on the theory that
   something else is wrong.
 - **Otherwise**, every fetched object goes through `applyFetched`,
   which is the table in unit 5: insert, replace, rebase, skip if
@@ -117,7 +117,7 @@ therefore not lost: the next pass asks `/changes` since that state
 and picks it up.
 
 Resync never wipes.  Every fetched object goes through the same
-`applyFetched` as a pull, so an object with a pending edit is rebased
+`applyFetched` as a sync-in, so an object with a pending edit is rebased
 rather than replaced, and the user's unpushed change survives a state
 the server forgot.  After the last chunk, one more transaction deletes
 every object of the type the server did not return, except those with
@@ -129,23 +129,23 @@ the server's.
 ## Status and what the app sees
 
 Every committed round and chunk emits a change set with source
-`pull`.  `currentStatus()` returns a `SyncStatus` with `lastPull`,
-`lastPush`, `pendingCount`, `lastFailure` and the `initialSync`
+`sync-in`.  `currentStatus()` returns a `SyncStatus` with `lastSyncIn`,
+`lastSyncOut`, `pendingCount`, `lastFailure` and the `initialSync`
 progress map.  There is no "syncing" boolean; an app that wants a
 spinner watches `initialSync` for a long fetch and otherwise does not
-need one, because a pull is a few hundred milliseconds and the change
+need one, because a sync-in is a few hundred milliseconds and the change
 stream says when it landed.
 
 ## Where to look
 
-- `Sources/Jinx/Pull.swift`: `pull()` sorts the types, `pullChanges`
+- `Sources/Jinx/SyncIn.swift`: `syncIn()` sorts the types, `syncInChanges`
   is the round loop, `fullFetch` is initial sync and resync, and
   `applyFetched` is the merge.
-- `swift test --filter JinxTests.PullTests`.
-  `incrementalPullAppliesCreatesUpdatesAndDestroys` is one round;
+- `swift test --filter JinxTests.SyncInTests`.
+  `incrementalSyncInAppliesCreatesUpdatesAndDestroys` is one round;
   `pagedChangesLoopUntilDone` is `hasMoreChanges`;
   `initialSyncPagesWhenGetIsTooLarge` is the `requestTooLarge` path;
   and `cannotCalculateChangesResyncsWithoutWiping` is the sentence
   "resync never wipes", with a pending edit that survives.
 
-Next: [Push](09-push.md).
+Next: [Sync out](09-sync-out.md).

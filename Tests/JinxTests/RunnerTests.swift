@@ -37,13 +37,13 @@ struct TimeoutError: Error {}
   defer { runner.cancel() }
 
   let id = h.server.create("Thing", ["n": 1])
-  let pulled = try await nextChange(changes) { $0.source == .pull && $0.types["Thing"]?.created.isEmpty == false }
-  #expect(pulled.types["Thing"]?.created.count == 1)
+  let syncedIn = try await nextChange(changes) { $0.source == .syncIn && $0.types["Thing"]?.created.isEmpty == false }
+  #expect(syncedIn.types["Thing"]?.created.count == 1)
   #expect(try await h.engine.object(type: "Thing", id: id)?.value["n"] == 1)
 
   let key = try await h.engine.create("Thing", ["n": 2])
-  let pushed = try await nextChange(changes) { $0.source == .push && $0.types["Thing"]?.idsAssigned[key] != nil }
-  #expect(h.server.object("Thing", pushed.types["Thing"]!.idsAssigned[key]!)?["n"] == 2)
+  let syncedOut = try await nextChange(changes) { $0.source == .syncOut && $0.types["Thing"]?.idsAssigned[key] != nil }
+  #expect(h.server.object("Thing", syncedOut.types["Thing"]!.idsAssigned[key]!)?["n"] == 2)
   #expect(try await h.engine.currentStatus().isConnected)
 }
 
@@ -55,8 +55,8 @@ struct TimeoutError: Error {}
   h.server.enqueue(.transportFailure)
   h.server.enqueue(.transportFailure)
   let key = try await h.engine.create("Thing", ["n": 1])
-  let pushed = try await nextChange(changes) { $0.source == .push && $0.types["Thing"]?.idsAssigned[key] != nil }
-  #expect(pushed.accountId == "acct")
+  let syncedOut = try await nextChange(changes) { $0.source == .syncOut && $0.types["Thing"]?.idsAssigned[key] != nil }
+  #expect(syncedOut.accountId == "acct")
   #expect(h.server.objects("Thing").count == 1)
 }
 

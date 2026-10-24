@@ -13,7 +13,7 @@ Unit 6.
 one per commit, in commit order.  Unit 12.
 
 **Claim** (`PendingEntry.claimedBy`).  A mark on a pending entry
-naming the process that is currently pushing it.  Stale after
+naming the process that is currently syncing out it.  Stale after
 `claimStaleAfter`.  Unit 6.
 
 **Classification** (`Classification`).  The sorting of every error
@@ -28,7 +28,7 @@ Units 7 and 9.
 type.  Unit 7.
 
 **Dependency order** (`dependsOn`, `inDependencyOrder()`).  The order
-types are fetched and pushed in, so that a referenced type precedes
+types are fetched and synced out in, so that a referenced type precedes
 its referrer.  Unit 7.
 
 **Eviction** (`evict`).  Deleting objects of a windowed type that
@@ -72,24 +72,18 @@ Unit 5.
 **Owned properties** (`ownedProperties`).  The properties a
 replacement encoding may change.  Unit 4.
 
-**Pass** (`sync()`).  One push followed by one pull.  Unit 8.
+**Pass** (`sync()`).  One sync-out followed by one sync-in.  Unit 8.
 
 **Patch** (`PatchObject`).  A `/set` update: path to value, null to
 remove.  Unit 4.
 
 **Pending entry** (`PendingEntry`).  The log record that an object has
-a create, update or destroy waiting to be pushed.  At most one per
+a create, update or destroy waiting to be synced out.  At most one per
 object; stores no patch.  Unit 5.
 
 **Pin** (`pin(_:ids:)`, `BlobStore.pin`).  For objects, ids the app
 wants held regardless of any subscription.  For blobs, files exempt
 from cache eviction.  Units 10 and 11.
-
-**Pull** (`pull()`).  Bringing every type up to date from the server.
-Unit 8.
-
-**Push** (`push()`).  Sending every pending entry to the server.
-Unit 9.
 
 **Rebase** (`Rebase`).  Re-applying a pending change to a newly
 fetched object.  Unit 4.
@@ -118,6 +112,12 @@ last reported it; `nil` if the server has never seen it.  Unit 5.
 **Subscription** (`QuerySubscription`).  A live query the engine keeps
 current for a windowed type; its result is a `SubscriptionResult`.
 Unit 10.
+
+**Sync-in** (`syncIn()`).  Bringing every type up to date from the server.
+Unit 8.
+
+**Sync-out** (`syncOut()`).  Sending every pending entry to the server.
+Unit 9.
 
 **Synced object** (`SyncedObject`, `StoredObject`).  One JMAP object
 as Jinx holds it, with its metadata.  Unit 5.

@@ -133,7 +133,7 @@ to mention.
 
 Now the hard case.  The app has a pending edit: the local value
 differs from the snapshot of the server object by one patch, not yet
-pushed.  A pull arrives with a newer version of the same object.  What
+synced out.  A sync-in arrives with a newer version of the same object.  What
 is the local value now?
 
 `Rebase` answers with a square.
@@ -177,11 +177,11 @@ the new local value.  The fetched object becomes the new snapshot.
 
 The consequence is the whole of Jinx's default conflict rule, and it
 is worth saying plainly: **a property with a pending local change
-keeps its local value until it is pushed, and every other property
+keeps its local value until it is synced out, and every other property
 takes the server's.**  Because the patch is at path granularity, two
 clients editing different members of one map do not conflict at all,
 and two clients editing the same scalar resolve as last write wins
-when the pending edit is eventually pushed.
+when the pending edit is eventually synced out.
 
 ```swift
 let snapshot: JSONValue = ["title": "Draft", "keywords": ["urgent": true]]
@@ -198,7 +198,7 @@ The server added a keyword; the app changed the title; the new local
 value has both.  Had the server instead changed the title to "Draft
 the manual" itself, because the same user did it on another device,
 applying the patch would change nothing, `isRedundant` would be true,
-and the engine would drop the pending entry rather than push a no-op.
+and the engine would drop the pending entry rather than sync out a no-op.
 That check uses JMAP equivalence from unit 2, so a server that sends
 an explicit `null` where the patch removed a property is still
 recognized as already having the change.

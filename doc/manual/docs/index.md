@@ -22,7 +22,7 @@ The units are in order and build on one another.  The first five are
 the foundation: what Jinx is, how it represents JSON, what a request
 looks like, how it computes and applies patches, and the model of a
 synced object that everything else rests on.  The next four are the
-machinery: the store, type descriptors, pull and push.  Then come the
+machinery: the store, type descriptors, sync-in and sync-out.  Then come the
 extensions for large accounts and large files, the run loop, the
 tests, and a capstone that builds a small client end to end.
 

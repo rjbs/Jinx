@@ -148,7 +148,7 @@ private func insert(
 
 @Test func journalRoundTripsAndPages() async throws {
   let store = try makeStore()
-  var first = ChangeSet(accountId: account, source: .pull)
+  var first = ChangeSet(accountId: account, source: .syncIn)
   first.noteCreated(LocalKey(1), type: "Thing")
   first.noteIdAssigned("x", to: LocalKey(1), type: "Thing")
   first.failed[LocalKey(2)] = SetError(type: SetError.notFound)

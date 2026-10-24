@@ -9,7 +9,7 @@ queue; when the network is back, the queue drains.  It is simple and
 it fails in every direction at once.  Edit the same task three times
 and three requests go, each racing the last.  Change your mind and
 there is no way to cancel the first without replaying the queue.  A
-pull that arrives while the queue holds a change to the same object
+sync-in that arrives while the queue holds a change to the same object
 either overwrites the user's edit or has to be held back.  And when a
 request fails permanently, there is no record of what the object
 looked like before it, so nothing can be reverted.
@@ -39,7 +39,7 @@ parts.
   `destroy`.  When it is not `nil`, there is exactly one matching
   entry in the pending log.
 - **`lastError`**, the `SetError` from the last permanent failure to
-  push this object, or `nil`.
+  sync out this object, or `nil`.
 
 <figure class="jinx-figure">
 <svg viewBox="0 0 760 236" width="760" height="236" role="img" aria-labelledby="states-title">
@@ -58,7 +58,7 @@ parts.
 <text class="sub" x="286" y="98"><tspan>snapshot</tspan><tspan x="362">{title: "Draft"}</tspan></text>
 <text class="sub" x="286" y="122"><tspan>local</tspan><tspan x="362">{title: "Draft 2"}</tspan></text>
 <text class="sub" x="286" y="146"><tspan>pending</tspan><tspan x="362">update</tspan></text>
-<text class="sub" x="286" y="186">the push will send the diff of</text>
+<text class="sub" x="286" y="186">the sync-out will send the diff of</text>
 <text class="sub" x="286" y="202">snapshot to local</text>
 <rect class="blk" x="520" y="16" width="220" height="200" rx="4"/>
 <text class="nm" x="630" y="42" text-anchor="middle">created locally</text>
@@ -66,7 +66,7 @@ parts.
 <text class="sub" x="536" y="98"><tspan>snapshot</tspan><tspan x="612">nil</tspan></text>
 <text class="sub" x="536" y="122"><tspan>local</tspan><tspan x="612">{title: "New"}</tspan></text>
 <text class="sub" x="536" y="146"><tspan>pending</tspan><tspan x="612">create</tspan></text>
-<text class="sub" x="536" y="186">the push will send local whole,</text>
+<text class="sub" x="536" y="186">the sync-out will send local whole,</text>
 <text class="sub" x="536" y="202">under creation id "jinx42"</text>
 </svg>
 <figcaption>The key is constant across all three; the id and snapshot arrive when the server has seen the object.</figcaption>
@@ -74,17 +74,17 @@ parts.
 
 The log entry, a `PendingEntry`, carries the key, the operation, a
 sequence number, and a claim: the id of the process that is currently
-pushing it and when it claimed it.  The entry stores no patch.  That
+syncing it out and when it claimed it.  The entry stores no patch.  That
 omission is the design.
 
-## The patch is computed at push time
+## The patch is computed at sync-out time
 
-When the push runs, it diffs the snapshot against the local value,
+When the sync-out runs, it diffs the snapshot against the local value,
 with the type's `MayPatch` veto, and that diff is what goes in the
 `/set`.  Nothing is recorded at edit time except that the object is
 pending.  Four things follow.
 
-**Edits collapse.**  Three edits to one object before a push are one
+**Edits collapse.**  Three edits to one object before a sync-out are one
 entry and one patch, from the snapshot to wherever the edits ended up.
 
 **Reverting drops the entry.**  If an edit brings the local value back
@@ -125,21 +125,21 @@ case .destroy:
 
 A create sends the whole local value, so an edit to a pending create
 changes nothing about the entry.  Destroying an object the server has
-never seen, and that no push is currently sending, simply deletes the
+never seen, and that no sync-out is currently sending, simply deletes the
 row: there is nothing to tell the server.  Destroying any other object
 sets the entry to `destroy`, and a later update to it is refused.
 
-## What a pull does to each state
+## What a sync-in does to each state
 
-When a pull fetches an object that is already held, what happens
-depends on `pending`.  This is `applyFetched` in `Pull.swift`.
+When a sync-in fetches an object that is already held, what happens
+depends on `pending`.  This is `applyFetched` in `SyncIn.swift`.
 
 | `pending` | Effect |
 |---|---|
 | `nil` | Snapshot and local both become the fetched object. |
 | `update` or `create` | Rebase: the pending patch is recomputed from the old snapshot and local, the snapshot becomes the fetched object, and local becomes the fetched object with the patch applied.  If the result equals the fetched object, the server already has the change and the entry is cleared. |
 | `destroy` | The snapshot becomes the fetched object; local is untouched; the destroy still goes. |
-| any, claimed by another process | Skipped.  The process holding the claim will reconcile when its push completes, and touching the object now would race it. |
+| any, claimed by another process | Skipped.  The process holding the claim will reconcile when its sync-out completes, and touching the object now would race it. |
 
 A `create` can be rebased because a lost create response, in unit 9,
 can leave an object with a snapshot and a `create` entry at once.
@@ -152,7 +152,7 @@ object adopts the id, the local value is rebased onto the fetched
 one, and the change stream reports the id assignment.  The key does
 not change.
 
-## What a push does to each state
+## What a sync-out does to each state
 
 A successful create or update sets the snapshot to what was sent,
 merged with any server-set properties the response returned, and sets
@@ -162,9 +162,9 @@ snapshot, records the error in `lastError`, and clears the entry; the
 app's next read sees the server's value and the reason.
 
 Unless the object was edited while the request was in flight.  An
-edit during a push appends a new entry with a later sequence number,
-and the push response confirms only the entry it sent.  The new
-local value is kept and the new entry waits for the next push.  On a
+edit during a sync-out appends a new entry with a later sequence number,
+and the sync-out response confirms only the entry it sent.  The new
+local value is kept and the new entry waits for the next sync-out.  On a
 permanent failure the same rule holds: the edit made after the send
 is never reverted, because the user made it against what they saw,
 and what they saw was not wrong.
@@ -191,12 +191,12 @@ yet, and `lastError` so that it can say why.
 
 - `Sources/JinxStore/Records.swift` defines `StoredObject`,
   `PendingEntry` and `LocalKey`.  `Sources/Jinx/Writes.swift` is the
-  write path, and `applyFetched` in `Sources/Jinx/Pull.swift` is the
+  write path, and `applyFetched` in `Sources/Jinx/SyncIn.swift` is the
   table above as code.
-- `swift test --filter JinxTests.PushTests`.
+- `swift test --filter JinxTests.SyncOutTests`.
   `editsCollapseAndRevertingDropsTheEntry` is the second consequence
   above; `rebaseKeepsPendingPropertyAndTakesTheRest` and
-  `pendingChangeTheServerAlreadyHasIsDropped` are the pull table's
+  `pendingChangeTheServerAlreadyHasIsDropped` are the sync-in table's
   second row; `destroyOfUnsentObjectIsLocalOnly` is the row deletion.
 
 Next: [The store](06-store.md).

@@ -75,7 +75,7 @@ private func byN(_ ascending: Bool = true) -> [JSONValue] {
   try await h.engine.sync()
   #expect(try await h.engine.object(key: pinnedKey)?.pending == nil)
   try await h.engine.sync()
-  #expect(try await h.engine.object(key: pinnedKey) == nil, "with the change pushed and nothing retaining it, it is evicted")
+  #expect(try await h.engine.object(key: pinnedKey) == nil, "with the change synced out and nothing retaining it, it is evicted")
 }
 
 @Test func referencedObjectsAreFetchedAndHeldOneLevel() async throws {
@@ -148,7 +148,7 @@ private func byN(_ ascending: Bool = true) -> [JSONValue] {
   try await h.engine.sync()
   #expect(try await h.engine.object(type: "Item", id: ids[2])?.value["note"] == "changed while away")
   #expect(try await h.engine.object(type: "Item", id: ids[0]) != nil, "pinned survives")
-  #expect(try await h.engine.object(key: key)?.id != nil, "pending create survived and was pushed")
+  #expect(try await h.engine.object(key: key)?.id != nil, "pending create survived and was synced out")
   #expect(try await h.engine.result(of: "top")?.ids.count == 2)
 }
 

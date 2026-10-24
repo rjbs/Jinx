@@ -43,8 +43,8 @@ public struct SyncConfiguration: Sendable {
 /// What an app shows in a settings pane.
 public struct SyncStatus: Sendable, Hashable {
   public var isConnected = false
-  public var lastPull: Date?
-  public var lastPush: Date?
+  public var lastSyncIn: Date?
+  public var lastSyncOut: Date?
   public var pendingCount = 0
   public var lastFailure: String?
   /// Types whose initial sync is still running: fetched so far, and
@@ -79,7 +79,7 @@ public struct SyncedObject: Sendable, Hashable {
 }
 
 /// The sync engine: one per account per process.  It owns the pending
-/// log, runs push and pull, and reports every committed change on its
+/// log, runs sync-out and sync-in, and reports every committed change on its
 /// change stream.  It is an actor and never runs on the main actor;
 /// everything it hands out is a `Sendable` value.
 public actor SyncEngine<Store: SyncStore> {
@@ -92,14 +92,14 @@ public actor SyncEngine<Store: SyncStore> {
   var session: Session?
   var status = SyncStatus()
   /// Types a push response or push notification said have moved on.
-  var pullNeeded: Set<String> = []
-  /// Set after a lost response, so the next pass pulls before it
-  /// resends creates; see `Push`.
-  var reconcileBeforePush = false
+  var needsSyncIn: Set<String> = []
+  /// Set after a lost response, so the next pass syncs in before it
+  /// resends creates; see `SyncOut.swift`.
+  var reconcileBeforeSyncOut = false
   /// Per-type cap on `/set` batch size, lowered after `requestTooLarge`.
   var setChunk: [String: Int] = [:]
   /// Types whose subscriptions must be re-queried because this process
-  /// changed their objects; a push advances the stored state, so the
+  /// changed their objects; a sync-out advances the stored state, so the
   /// next pass would otherwise see no movement and skip the query.
   var subscriptionsDirty: Set<String> = []
   private var subscribers: [UUID: AsyncStream<ChangeSet>.Continuation] = [:]
@@ -223,25 +223,25 @@ public actor SyncEngine<Store: SyncStore> {
 
   // MARK: - Sync
 
-  /// One full pass: push pending changes, then pull.  Throws
+  /// One full pass: sync out pending changes, then sync in.  Throws
   /// `SyncError.retryable` for a failure worth retrying, and lets other
   /// errors through.
   public func sync() async throws {
-    if reconcileBeforePush {
-      try await pull()
-      reconcileBeforePush = false
+    if reconcileBeforeSyncOut {
+      try await syncIn()
+      reconcileBeforeSyncOut = false
     }
-    // A push that fails for a retryable reason still leaves the pull
+    // A sync-out that fails for a retryable reason still leaves the sync-in
     // worth running: the pending entries are kept and will rebase onto
     // whatever arrives, and the app gets fresh data while its writes
     // wait. -- claude, 2026-10-17
     var pushFailure: (any Error)?
     do {
-      try await push()
+      try await syncOut()
     } catch SyncError.retryable(let reason) {
       pushFailure = SyncError.retryable(reason)
     }
-    try await pull()
+    try await syncIn()
     if let pushFailure { throw pushFailure }
   }
 }

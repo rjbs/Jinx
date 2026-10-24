@@ -8,7 +8,7 @@ extension SyncEngine {
   /// Brings every type up to date: `/changes` for types with a state,
   /// a full fetch for types without one or whose state the server no
   /// longer recognizes.
-  func pull() async throws {
+  func syncIn() async throws {
     let session = try await currentSession()
     let accountId = accountId
     let states = try await store.read { tx -> [String: String?] in
@@ -28,17 +28,17 @@ extension SyncEngine {
         incremental.append(descriptor)
       }
     }
-    let (resyncs, moved) = try await pullChanges(incremental, session: session)
+    let (resyncs, moved) = try await syncInChanges(incremental, session: session)
     for descriptor in needFull + resyncs {
       try await fullFetch(descriptor, session: session)
     }
     try await refreshFullTypeSubscriptions(moved: moved.union((needFull + resyncs).map(\.name)), session: session)
-    let windowedResyncs = try await pullWindowed(windowed, session: session)
+    let windowedResyncs = try await syncInWindowed(windowed, session: session)
     if !windowedResyncs.isEmpty {
       for descriptor in windowedResyncs { try await resyncWindowed(descriptor) }
-      _ = try await pullWindowed(windowedResyncs, session: session)
+      _ = try await syncInWindowed(windowedResyncs, session: session)
     }
-    status.lastPull = Date()
+    status.lastSyncIn = Date()
   }
 
   var fetchChunk: Int {
@@ -49,7 +49,7 @@ extension SyncEngine {
   /// Runs `/changes` rounds for the given types until none has more.
   /// Returns the types that need a full fetch instead, and the types
   /// whose state moved.
-  private func pullChanges(_ types: [TypeDescriptor], session: Session) async throws -> ([TypeDescriptor], Set<String>) {
+  private func syncInChanges(_ types: [TypeDescriptor], session: Session) async throws -> ([TypeDescriptor], Set<String>) {
     var remaining = types
     var needFull: [TypeDescriptor] = []
     var moved: Set<String> = []
@@ -143,19 +143,19 @@ extension SyncEngine {
           if !changes.hasMoreChanges { done.append(type) }
         }
         return (done, stale, resync, movedNow, failed)
-      }, source: .pull)
+      }, source: .syncIn)
 
       if let failed = result.failed {
         status.lastFailure = failed
         throw SyncError.retryable(failed)
       }
       moved.formUnion(result.moved)
-      pullNeeded.subtract(result.done)
+      needsSyncIn.subtract(result.done)
       remaining.removeAll { result.done.contains($0.name) || result.resync.contains($0.name) }
       needFull += result.resync.compactMap { descriptors[$0] }
       if !result.stale.isEmpty {
         staleRounds += 1
-        if staleRounds > 5 { throw SyncError.retryable("state kept moving during pull") }
+        if staleRounds > 5 { throw SyncError.retryable("state kept moving during sync-in") }
       }
     }
     return (needFull, moved)
@@ -232,8 +232,8 @@ extension SyncEngine {
         changeSet.noteDestroyed(object.key, type: type)
       }
       try tx.setState(finalState, accountId: accountId, type: type)
-    }, source: .pull)
-    pullNeeded.remove(type)
+    }, source: .syncIn)
+    needsSyncIn.remove(type)
   }
 
   /// Commits one chunk of a full fetch.
@@ -244,7 +244,7 @@ extension SyncEngine {
       for object in list {
         try Self.applyFetched(object, descriptor: descriptor, accountId: accountId, processId: processId, in: tx, changeSet: &changeSet)
       }
-    }, source: .pull)
+    }, source: .syncIn)
   }
 
   func send(_ request: Request, session: Session) async throws -> Response {

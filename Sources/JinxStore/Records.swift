@@ -50,7 +50,7 @@ public struct StoredObject: Sendable, Hashable {
   /// The object as the app sees it: the snapshot plus any pending change.
   public var local: JSONValue
   public var pending: PendingOperation?
-  /// The last permanent error a push produced for this object.
+  /// The last permanent error a sync-out produced for this object.
   public var lastError: SetError?
 
   public init(
@@ -127,9 +127,25 @@ public struct ChangeSet: Sendable, Hashable, Codable {
     /// A local write through the engine.
     case local
     /// A `/set` response applied.
-    case push
+    case syncOut
     /// A `/changes` or initial sync applied.
-    case pull
+    case syncIn
+
+    // Journals written before the sync-out/sync-in rename hold "push"
+    // and "pull"; a tail must still read them. -- claude, 2026-10-23
+    public init(from decoder: any Decoder) throws {
+      let container = try decoder.singleValueContainer()
+      let raw = try container.decode(String.self)
+      switch raw {
+      case "push": self = .syncOut
+      case "pull": self = .syncIn
+      default:
+        guard let source = Source(rawValue: raw) else {
+          throw DecodingError.dataCorruptedError(in: container, debugDescription: "unknown change set source \(raw)")
+        }
+        self = source
+      }
+    }
   }
 
   public struct TypeChanges: Sendable, Hashable, Codable {
@@ -392,7 +408,7 @@ public struct BlobRecord: Sendable, Hashable, Codable {
   }
 }
 
-/// A change to a blob-valued property seen on a pull: the object now
+/// A change to a blob-valued property seen on a sync-in: the object now
 /// names a different blob.  The app's policy decides whether to fetch
 /// the new one and drop the old.
 public struct BlobChange: Sendable, Hashable, Codable {

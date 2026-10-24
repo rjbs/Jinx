@@ -221,11 +221,11 @@ failed outright keeps climbing.
 
 A `state` event carries a `StateChange`, section 7.1: a map from
 account id to type name to the new state string.  The engine in unit
-12 turns that into a flag that a type needs pulling and does nothing
+12 turns that into a flag that a type needs syncing in and does nothing
 else with the string itself, because the only way to learn what
 changed is to ask `/changes`.
 
-## Assembling a pull by hand
+## Assembling a sync-in by hand
 
 Here is the request the engine will build for you in unit 8, written
 out, so you can see that there is nothing in it but the RFC.  The goal
@@ -272,7 +272,7 @@ chunk the `/get` calls to `maxObjectsInGet`, so a large delta will
 draw `requestTooLarge`.  It does not handle `cannotCalculateChanges`,
 which means throwing the state away and starting over.  It does not
 know that one of the updated objects has a local edit waiting to be
-pushed.  And it does not store anything.  The wire is the easy part.
+synced out.  And it does not store anything.  The wire is the easy part.
 
 ## Where to look
 

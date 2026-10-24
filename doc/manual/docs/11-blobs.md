@@ -89,7 +89,7 @@ the audio file's bytes change, and because blobs are immutable that
 means the Track now has a new `blobId`.  The old blob is still cached
 and still plays, but it is the old file.
 
-Two things catch this.  The first is on pull.  A type descriptor
+Two things catch this.  The first is on sync-in.  A type descriptor
 names its blob properties, Track's `blobId` and Email's `blobId`,
 and when `applyFetched` sees one change, the change set carries a
 `BlobChange` with the type, key, property, old id and new id.  The
@@ -102,7 +102,7 @@ it evicts the record and calls the gone handler, which the engine
 installs as `refetchReferrers(of:)`.  That finds every held object
 whose blob properties name the gone id and fetches them again, so
 the next read of the object has the successor id.  This covers the
-case where the app learned of the change before the pull did, such
+case where the app learned of the change before the sync-in did, such
 as a push notification that arrived while a download was in flight.
 
 ## Where to look

@@ -30,7 +30,7 @@ are few and explicit.
 <text class="sub" x="555" y="136" text-anchor="middle">ids the app asked to keep, such as an open thread</text>
 <rect class="blk" x="50" y="166" width="330" height="60" rx="4"/>
 <text class="nm" x="215" y="190" text-anchor="middle">objects with a pending change</text>
-<text class="sub" x="215" y="210" text-anchor="middle">never evicted until pushed</text>
+<text class="sub" x="215" y="210" text-anchor="middle">never evicted until synced out</text>
 <rect class="blk" x="400" y="166" width="310" height="60" rx="4"/>
 <text class="nm" x="555" y="190" text-anchor="middle">referenced objects, one level</text>
 <text class="sub" x="555" y="210" text-anchor="middle">the Thread of every held Email</text>
@@ -108,7 +108,7 @@ the next pass pins the message.
 
 ## The windowed pass
 
-`pullWindowed` runs after the full types have been handled, and it
+`syncInWindowed` runs after the full types have been handled, and it
 loops in rounds, at most fifty, until no type reports more changes.
 A windowed type with no state yet first gets one from an empty
 `/get`, since there is nothing to fetch and the state is all that is
@@ -120,7 +120,7 @@ marks the type for resync; a mismatched `oldState` leaves the type for
 the next round, as in unit 8.
 
 **2. Refresh.**  Every subscription whose type moved, or that has no
-result yet, or whose type this process just changed with a push, is
+result yet, or whose type this process just changed with a sync-out, is
 refreshed.  The refresh uses `/queryChanges` when the last result
 said the server can calculate changes, there is a query state, and
 the subscription is unlimited or starts at position zero, passing the
@@ -192,7 +192,7 @@ itself.
 ## Where to look
 
 - `Sources/Jinx/Windowed.swift`: the public API at the top,
-  `pullWindowed` as the five steps, `evict`, and `resyncWindowed`.
+  `syncInWindowed` as the five steps, `evict`, and `resyncWindowed`.
   `refreshFullTypeSubscriptions` is the full-type case.
 - `swift test --filter JinxTests.WindowedTests`.
   `windowedTypeHoldsOnlyTheWindow` and `windowFollowsServerChanges`

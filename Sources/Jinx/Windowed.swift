@@ -150,7 +150,7 @@ extension SyncEngine {
   /// One round for the windowed types: changes, subscription refresh,
   /// fetches, references, then retention.  Returns the types that need
   /// a resync.
-  func pullWindowed(_ types: [TypeDescriptor], session: Session) async throws -> [TypeDescriptor] {
+  func syncInWindowed(_ types: [TypeDescriptor], session: Session) async throws -> [TypeDescriptor] {
     guard !types.isEmpty else { return [] }
     let accountId = accountId
     let chunk = fetchChunk
@@ -389,8 +389,8 @@ extension SyncEngine {
           }
         }
         try Self.evict(windowed: types.filter { $0.mode == .windowed }, descriptors: descriptors, accountId: accountId, in: tx, changeSet: &changeSet)
-      }, source: .pull)
-      pullNeeded.subtract(activeNames)
+      }, source: .syncIn)
+      needsSyncIn.subtract(activeNames)
       subscriptionsDirty.subtract(activeNames)
       if !hasMore { break }
     }
@@ -481,7 +481,7 @@ extension SyncEngine {
         try tx.setSubscriptionResult(nil, accountId: accountId, id: sub.id)
       }
       try tx.setState(nil, accountId: accountId, type: type)
-    }, source: .pull)
+    }, source: .syncIn)
   }
 }
 
@@ -528,7 +528,7 @@ extension SyncEngine {
         try tx.setSubscriptionResult(result, accountId: accountId, id: id)
         changeSet.subscriptions.append(id)
       }
-    }, source: .pull)
+    }, source: .syncIn)
     subscriptionsDirty.subtract(dirty)
   }
 }

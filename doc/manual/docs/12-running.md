@@ -53,7 +53,7 @@ configured type names, so the server sends state changes for those
 types only, and consumes the `EventSourceClient` stream.  A `connected`
 event sets `isConnected` in the status; a `disconnected` clears it; a
 `stateChange` whose account is this one marks each named type as
-needing a pull and requests a pass.  The state string in the
+needing a sync-in and requests a pass.  The state string in the
 notification is not used for anything else, because the only way to
 learn what changed is to ask `/changes`, which the pass will do.
 
@@ -66,7 +66,7 @@ One EventSource connection per database is enough, and a reasonable
 app with a GUI and a CLI gives the connection to the GUI.
 That is a matter of which process calls `run()`.  NerfJournal's
 command-line tool does not; after a write it calls `sync()` once and
-exits, which pushes its change and pulls whatever is new, and the
+exits, which syncs out its change and syncs in whatever is new, and the
 GUI's engine learns of the CLI's commit through the journal.
 
 ## Two processes
@@ -121,7 +121,7 @@ else.
 ## Status
 
 `currentStatus()` returns a `SyncStatus`: whether the push connection
-is up, the time of the last pull and the last push, the number of
+is up, the time of the last sync-in and the last sync-out, the number of
 pending entries, the last failure as text, and the initial sync
 progress per type.  It is meant for a settings pane and a debugging
 view, and it changes only at pass boundaries, so an app polls it when

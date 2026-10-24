@@ -111,7 +111,7 @@ private func makeBlobs(_ h: Harness, cacheLimit: Int64 = 1 << 30) async throws -
   try await blobs.download(v1, pin: true)
 
   // A retag on the server: the Track now names v2 and v1 is gone.  A
-  // client that has not pulled yet and asks for v1 learns it is gone,
+  // client that has not synced in yet and asks for v1 learns it is gone,
   // and the engine refetches the Track that named it.
   h.server.update("Track", id) { $0["blobId"] = .string(v2); $0["title"] = "renamed" }
   h.server.removeBlob(v1)
@@ -124,12 +124,12 @@ private func makeBlobs(_ h: Harness, cacheLimit: Int64 = 1 << 30) async throws -
   let last = try #require(try await h.journal().last)
   #expect(last.blobs == [BlobChange(type: "Track", key: key, property: "blobId", oldBlobId: v1, newBlobId: v2)])
 
-  // The same change arriving through a pull is reported the same way.
+  // The same change arriving through a sync-in is reported the same way.
   let v3 = h.server.addBlob(Data([3]))
   h.server.update("Track", id) { $0["blobId"] = .string(v3) }
   try await h.engine.sync()
-  let pulled = try #require(try await h.journal().last { $0.source == .pull })
-  #expect(pulled.blobs == [BlobChange(type: "Track", key: key, property: "blobId", oldBlobId: v2, newBlobId: v3)])
+  let syncedIn = try #require(try await h.journal().last { $0.source == .syncIn })
+  #expect(syncedIn.blobs == [BlobChange(type: "Track", key: key, property: "blobId", oldBlobId: v2, newBlobId: v3)])
 }
 
 @Test func uploadUsesTheSessionUploadUrl() async throws {

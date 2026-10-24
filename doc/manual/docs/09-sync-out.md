@@ -1,11 +1,11 @@
-# 9. Push
+# 9. Sync out
 
 A write in Jinx is a change to the local store, and nothing else
 happens at the time of the write.  The server learns of it when the
-next push runs, and the push is where every hard question about
+next sync-out runs, and the sync-out is where every hard question about
 writes is answered: what to send, in what order, what a failure means,
 and what to do when the answer never arrives.  This unit covers the
-write API briefly and the push in full.
+write API briefly and the sync-out in full.
 
 ## The write API
 
@@ -37,19 +37,19 @@ for an import or a one-time migration.  `wipe`, on the engine, discards
 everything for the account.
 
 A create returns its `LocalKey` at once; the JMAP id arrives on the
-change stream, in `idsAssigned`, when the push succeeds.  Every local
+change stream, in `idsAssigned`, when the sync-out succeeds.  Every local
 write commits a change set with source `local` and asks the run loop
 for a pass.
 
-## The push loop
+## The sync-out loop
 
-`push()` repeats the following until the log is empty or something
+`syncOut()` repeats the following until the log is empty or something
 needs a retry, with a cap of twenty rounds.
 
 1. **Claim.**  In one transaction, claim every unclaimed entry for the
    account and every entry whose claim has gone stale, in log order,
    and read each entry's object as it stands now.  That pair, entry
-   and object, is a `PushItem`, and the object in it is what this
+   and object, is a `SyncOutItem`, and the object in it is what this
    round will send.  An edit after this moment is an edit in flight.
 2. **Build.**  Group the items by type, in dependency order, and chunk
    each type to the server's `maxObjectsInSet`, or to a smaller size if
@@ -89,10 +89,10 @@ accordingly.
 One more thing happens if the request carried any creates.  The
 server may have applied them before the response was lost, and
 resending them blind might make duplicates.  So the engine sets a
-flag, `reconcileBeforePush`, and the next pass pulls before it pushes.
-The pull brings down whatever the server made, and `applyFetched` in
+flag, `reconcileBeforeSyncOut`, and the next pass syncs in before it syncs out.
+The sync-in brings down whatever the server made, and `applyFetched` in
 unit 5 adopts any object whose client identity matches a local object
-with no id.  By the time the push runs, the lost create has either
+with no id.  By the time the sync-out runs, the lost create has either
 been matched and will not be resent, or genuinely never happened.
 
 ## Applying the response
@@ -112,11 +112,11 @@ Otherwise the call succeeded and each item is reconciled on its own.
 | Operation | Outcome | Effect |
 |---|---|---|
 | create | in `created` | Confirm: set the id, set the snapshot to what was sent merged with the server-set properties returned, report the id on the change stream. |
-| create | `notCreated` with `alreadyExists` | Confirm with the `existingId` the server supplied, and flag the type for a pull to fetch the rest of that object. |
-| create | `notCreated` with `invalidProperties` naming the client identity property | The server has an object with this `uid` already.  Query for it by the identity filter, adopt its id, and mark the object `update` so any local differences are pushed next round.  If the query finds nothing, record a permanent error. |
+| create | `notCreated` with `alreadyExists` | Confirm with the `existingId` the server supplied, and flag the type for a sync-in to fetch the rest of that object. |
+| create | `notCreated` with `invalidProperties` naming the client identity property | The server has an object with this `uid` already.  Query for it by the identity filter, adopt its id, and mark the object `update` so any local differences are synced out next round.  If the query finds nothing, record a permanent error. |
 | create | any other `notCreated` | Retryable: release.  Permanent: revert. |
 | update | in `updated` | Confirm: snapshot becomes what was sent merged with server-set properties. |
-| update | `notUpdated` | Retryable: release.  Permanent: revert, and if the error is `notFound`, flag a pull, since the server has destroyed something we hold. |
+| update | `notUpdated` | Retryable: release.  Permanent: revert, and if the error is `notFound`, flag a sync-in, since the server has destroyed something we hold. |
 | destroy | in `destroyed`, or `notDestroyed` with `notFound` | Delete the row.  Either way the server does not have it. |
 | destroy | any other `notDestroyed` | Retryable: release.  Permanent: revert. |
 | any | not mentioned in the response | Release and retry; a response that omits an item is not an answer. |
@@ -126,8 +126,8 @@ id whose object no longer exists locally, the user destroyed it while
 the create was in flight; the server has it and we do not want it, so
 a row is inserted with a pending `destroy`.  And the type's state
 advances to `newState` only if the stored state equals the response's
-`oldState`; otherwise the server moved between our last pull and this
-push, and the type is flagged for a pull rather than have its state
+`oldState`; otherwise the server moved between our last sync-in and this
+sync-out, and the type is flagged for a sync-in rather than have its state
 jump over changes it has not seen.
 
 Confirming and reverting both honor the edited-in-flight rule from
@@ -140,7 +140,7 @@ only if there was no edit in flight.
 
 ## Classification
 
-Every error met during a push is sorted into three classes by
+Every error met during a sync-out is sorted into three classes by
 `Classification`, and the sorting is the whole of Jinx's retry policy.
 
 | Error | Retryable | Too large | Permanent |
@@ -158,7 +158,7 @@ key in `failed` so the app can tell the user.  `invalidProperties`,
 `notFound`, `forbidden` and `invalidPatch` are permanent because
 sending the same thing again would draw the same answer.
 `stateMismatch` is retryable because Jinx never sends `ifInState`;
-if a server reports it anyway, a pull and another try are the right
+if a server reports it anyway, a sync-in and another try are the right
 response.
 
 ## Idempotent creates
@@ -168,8 +168,8 @@ client that resends it may make two objects.  Jinx handles this with
 the three mechanisms already described, and it is worth seeing them
 together.
 
-1. A lost response with creates in flight makes the next pass pull
-   first, and the pull adopts by client identity.
+1. A lost response with creates in flight makes the next pass sync in
+   first, and the sync-in adopts by client identity.
 2. A resent create that the server refuses with `alreadyExists` is
    confirmed with the id the server names.
 3. A resent create that the server refuses with `invalidProperties`
@@ -184,16 +184,16 @@ moves.
 
 ## Where to look
 
-- `Sources/Jinx/Writes.swift` is the write API; `Push.swift` is the
+- `Sources/Jinx/Writes.swift` is the write API; `SyncOut.swift` is the
   loop, with `applySetResponses` as the two tables above;
   `Classification.swift` is the third table.
-- `swift test --filter JinxTests.PushTests`.
+- `swift test --filter JinxTests.SyncOutTests`.
   `updateSendsOnlyTheDiffAndKeepsForeignProperties` and
   `bulkWritesBecomeOneSet` are the build step;
   `lostCreateResponseIsAdoptedByIdentity` and
   `duplicateIdentityOnCreateAdoptsTheExistingObject` are mechanisms
   1 and 3; `permanentErrorRevertsOnlyThatObject` is revert;
   `tooLargeSetShrinksTheBatch` is the halving; and
-  `twoProcessesPushWithoutSendingTwice` is claims under contention.
+  `twoProcessesSyncOutWithoutSendingTwice` is claims under contention.
 
 Next: [Windowed sync](10-windowed.md).

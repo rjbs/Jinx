@@ -17,14 +17,14 @@ import JinxScriptedServer
   #expect(methodNames(h.server) == ["Thing/get"])
   let journal = try await h.journal()
   #expect(journal.count == 1)
-  #expect(journal[0].source == .pull)
+  #expect(journal[0].source == .syncIn)
   #expect(journal[0].types["Thing"]?.created.count == 2)
   let object = try #require(try await h.engine.object(type: "Thing", id: a))
   #expect(object.pending == nil)
   #expect(try await h.stored(object.key)?.snapshot == ["id": .string(a), "n": 1])
 }
 
-@Test func incrementalPullAppliesCreatesUpdatesAndDestroys() async throws {
+@Test func incrementalSyncInAppliesCreatesUpdatesAndDestroys() async throws {
   let h = try Harness()
   let a = h.server.create("Thing", ["n": 1])
   let b = h.server.create("Thing", ["n": 2])
@@ -100,7 +100,7 @@ import JinxScriptedServer
   #expect(try await h.engine.object(key: keyB) == nil, "an object the server no longer has is removed")
   #expect(try await h.localById("Thing")[a]?["n"] == 11)
   let created = try #require(try await h.engine.object(key: pendingKey))
-  #expect(created.id != nil, "the pending create was pushed, not wiped")
+  #expect(created.id != nil, "the pending create was synced out, not wiped")
   #expect(h.server.objects("Thing").count == 2)
 }
 

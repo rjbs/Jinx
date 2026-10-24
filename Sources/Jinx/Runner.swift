@@ -161,7 +161,7 @@ extension SyncEngine {
           guard let types = change.changed[accountId] else { continue }
           var any = false
           for (type, _) in types where descriptors[type] != nil {
-            pullNeeded.insert(type)
+            needsSyncIn.insert(type)
             any = true
           }
           if any { requestSync() }

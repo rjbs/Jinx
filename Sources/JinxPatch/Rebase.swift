@@ -19,7 +19,7 @@ public struct Rebase: Sendable, Hashable {
 
 extension Rebase {
   /// Rebases a pending change.  This is the whole of the default
-  /// conflict rule: a locally pending property wins until it is pushed,
+  /// conflict rule: a locally pending property wins until it is synced out,
   /// and every other property takes the server's value.  It works at
   /// patch-path granularity, so two clients editing different members
   /// of one map do not conflict.

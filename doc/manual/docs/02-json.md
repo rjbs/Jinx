@@ -96,7 +96,7 @@ This is not a corner case in Jinx.  Three decisions rest on it:
   not recorded at all.
 - A local edit that restores the server's value drops the pending
   entry, because there is nothing left to send.
-- After a pull, a pending edit whose result is JMAP-equivalent to what
+- After a sync-in, a pending edit whose result is JMAP-equivalent to what
   the server now holds is dropped, because the server already has it.
 
 Unit 5 returns to all three.

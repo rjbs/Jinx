@@ -19,7 +19,7 @@ public struct Writer<Transaction: SyncTransaction>: ~Copyable {
     self.changeSet = changeSet
   }
 
-  /// Creates an object locally.  The server sees it on the next push;
+  /// Creates an object locally.  The server sees it on the next sync-out;
   /// its JMAP id arrives on the change stream.
   public mutating func create(_ type: String, _ value: JSONValue) throws -> LocalKey {
     guard descriptors[type] != nil else { throw SyncError.unknownType(type) }
@@ -163,7 +163,7 @@ extension SyncEngine {
   public func wipe() async throws {
     let accountId = accountId
     try await store.write { tx in try tx.wipe(accountId: accountId) }
-    pullNeeded = []
+    needsSyncIn = []
     status = SyncStatus()
   }
 }

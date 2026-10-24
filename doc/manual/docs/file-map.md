@@ -49,8 +49,8 @@ stack order from the bottom.
 | `SyncEngine.swift` | The actor, configuration, status, reads, the change stream, `commit`, `sync()`. |
 | `TypeDescriptor.swift` | `TypeDescriptor`, dependency order, `SyncError`. |
 | `Writes.swift` | `Writer` and the engine's write methods. |
-| `Pull.swift` | `pull()`, the incremental rounds, `fullFetch`, `applyFetched`. |
-| `Push.swift` | `push()`, batching, sending, reconciling, adoption by identity. |
+| `SyncIn.swift` | `syncIn()`, the incremental rounds, `fullFetch`, `applyFetched`. |
+| `SyncOut.swift` | `syncOut()`, batching, sending, reconciling, adoption by identity. |
 | `Classification.swift` | The retry policy. |
 | `Windowed.swift` | Subscriptions, pins, fetch, the windowed pass, eviction, resync. |
 | `BlobStore.swift` | The blob store actor and the engine's blob extensions. |
@@ -76,7 +76,7 @@ stack order from the bottom.
 ## Tests
 
 One target per module, under `Tests/`.  `JinxTests` holds the
-engine suites, `PullTests`, `PushTests`, `WindowedTests`, `BlobTests`,
+engine suites, `SyncInTests`, `SyncOutTests`, `WindowedTests`, `BlobTests`,
 `RunnerTests` and `ClassificationTests`, and `Harness.swift`, which
 wires a scripted server, an in-memory store and an engine together.
 `JinxTypesTests` runs the standard descriptors against the scripted
