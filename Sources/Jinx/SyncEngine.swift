@@ -168,9 +168,9 @@ public actor SyncEngine<Store: SyncStore> {
     return status
   }
 
-  public func state(of type: String) async throws -> String? {
+  public func serverState(of type: String) async throws -> String? {
     let accountId = accountId
-    return try await store.read { tx in try tx.state(accountId: accountId, type: type) }
+    return try await store.read { tx in try tx.serverState(accountId: accountId, type: type) }
   }
 
   // MARK: - Change stream

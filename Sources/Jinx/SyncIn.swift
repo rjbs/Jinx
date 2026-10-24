@@ -13,7 +13,7 @@ extension SyncEngine {
     let accountId = accountId
     let states = try await store.read { tx -> [String: String?] in
       var states: [String: String?] = [:]
-      for type in self.orderedTypes { states[type.name] = try tx.state(accountId: accountId, type: type.name) }
+      for type in self.orderedTypes { states[type.name] = try tx.serverState(accountId: accountId, type: type.name) }
       return states
     }
     var needFull: [TypeDescriptor] = []
@@ -61,7 +61,7 @@ extension SyncEngine {
       let remainingNow = remaining
       let states = try await store.read { tx -> [String: String] in
         var states: [String: String] = [:]
-        for type in remainingNow { states[type.name] = try tx.state(accountId: accountId, type: type.name) }
+        for type in remainingNow { states[type.name] = try tx.serverState(accountId: accountId, type: type.name) }
         return states
       }
       var builder = RequestBuilder(using: capabilities)
@@ -138,7 +138,7 @@ extension SyncEngine {
           for id in changes.destroyed {
             try Self.applyDestroyed(id, type: type, accountId: accountId, in: tx, changeSet: &changeSet)
           }
-          try tx.setState(changes.newState, accountId: accountId, type: type)
+          try tx.setServerState(changes.newState, accountId: accountId, type: type)
           if changes.oldState != changes.newState { movedNow.append(type) }
           if !changes.hasMoreChanges { done.append(type) }
         }
@@ -231,7 +231,7 @@ extension SyncEngine {
         try tx.delete(key: object.key)
         changeSet.noteDestroyed(object.key, type: type)
       }
-      try tx.setState(finalState, accountId: accountId, type: type)
+      try tx.setServerState(finalState, accountId: accountId, type: type)
     }, source: .syncIn)
     needsSyncIn.remove(type)
   }

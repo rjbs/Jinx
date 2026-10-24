@@ -160,7 +160,7 @@ extension SyncEngine {
     // Types with no state yet get one from an empty /get.
     let states = try await store.read { tx -> [String: String?] in
       var states: [String: String?] = [:]
-      for type in types { states[type.name] = try tx.state(accountId: accountId, type: type.name) }
+      for type in types { states[type.name] = try tx.serverState(accountId: accountId, type: type.name) }
       return states
     }
     let stateless = types.filter { states[$0.name] ?? nil == nil }
@@ -176,7 +176,7 @@ extension SyncEngine {
         return try? GetResponse(json: invocation.arguments).state
       }
       try await store.write { tx in
-        for (type, state) in initial { try tx.setState(state, accountId: accountId, type: type) }
+        for (type, state) in initial { try tx.setServerState(state, accountId: accountId, type: type) }
       }
     }
 
@@ -184,7 +184,7 @@ extension SyncEngine {
       // Step 1: /changes for every windowed type.
       let typeStates = try await store.read { tx -> [String: String] in
         var states: [String: String] = [:]
-        for type in types { states[type.name] = try tx.state(accountId: accountId, type: type.name) }
+        for type in types { states[type.name] = try tx.serverState(accountId: accountId, type: type.name) }
         return states
       }
       var builder = RequestBuilder(using: capabilities)
@@ -373,7 +373,7 @@ extension SyncEngine {
           for id in changesNow[type]!.destroyed {
             try Self.applyDestroyed(id, type: type, accountId: accountId, in: tx, changeSet: &changeSet)
           }
-          try tx.setState(changesNow[type]!.newState, accountId: accountId, type: type)
+          try tx.setServerState(changesNow[type]!.newState, accountId: accountId, type: type)
         }
         for (type, objects) in fetchedNow where !activeNames.contains(type) {
           let descriptor = descriptors[type]!
@@ -480,7 +480,7 @@ extension SyncEngine {
       for sub in try tx.subscriptions(accountId: accountId) where sub.type == type {
         try tx.setSubscriptionResult(nil, accountId: accountId, id: sub.id)
       }
-      try tx.setState(nil, accountId: accountId, type: type)
+      try tx.setServerState(nil, accountId: accountId, type: type)
     }, source: .syncIn)
   }
 }

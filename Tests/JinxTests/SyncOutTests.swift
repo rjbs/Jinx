@@ -26,7 +26,7 @@ import JinxScriptedServer
   let syncedOut = try #require(try await h.journal().first { $0.source == .syncOut })
   #expect(syncedOut.types["Thing"]?.idsAssigned == [key: id])
   #expect(methodNames(h.server).first == "Thing/set")
-  #expect(try await h.engine.state(of: "Thing") == h.server.state(of: "Thing"), "the set's newState advanced the stored state")
+  #expect(try await h.engine.serverState(of: "Thing") == h.server.state(of: "Thing"), "the set's newState advanced the stored state")
   let gets = h.server.resolvedCalls(named: "Thing/get")
   #expect(gets.allSatisfy { $0.arguments["ids"] == [] }, "the sync-in after the sync-out had nothing to fetch")
 }

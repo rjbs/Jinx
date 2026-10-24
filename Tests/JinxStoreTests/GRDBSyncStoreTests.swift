@@ -135,15 +135,15 @@ private func insert(
 @Test func stateIsPerAccountAndType() async throws {
   let store = try makeStore()
   try await store.write { tx in
-    try tx.setState("s1", accountId: account, type: "Thing")
-    try tx.setState("s2", accountId: account, type: "Other")
-    try tx.setState("s3", accountId: account, type: "Thing")
+    try tx.setServerState("s1", accountId: account, type: "Thing")
+    try tx.setServerState("s2", accountId: account, type: "Other")
+    try tx.setServerState("s3", accountId: account, type: "Thing")
   }
-  #expect(try await store.read { tx in try tx.state(accountId: account, type: "Thing") } == "s3")
-  #expect(try await store.read { tx in try tx.state(accountId: account, type: "Other") } == "s2")
-  #expect(try await store.read { tx in try tx.state(accountId: "elsewhere", type: "Thing") } == nil)
-  try await store.write { tx in try tx.setState(nil, accountId: account, type: "Thing") }
-  #expect(try await store.read { tx in try tx.state(accountId: account, type: "Thing") } == nil)
+  #expect(try await store.read { tx in try tx.serverState(accountId: account, type: "Thing") } == "s3")
+  #expect(try await store.read { tx in try tx.serverState(accountId: account, type: "Other") } == "s2")
+  #expect(try await store.read { tx in try tx.serverState(accountId: "elsewhere", type: "Thing") } == nil)
+  try await store.write { tx in try tx.setServerState(nil, accountId: account, type: "Thing") }
+  #expect(try await store.read { tx in try tx.serverState(accountId: account, type: "Thing") } == nil)
 }
 
 @Test func journalRoundTripsAndPages() async throws {
@@ -172,15 +172,15 @@ private func insert(
   }
   try await store.write { tx in
     try tx.setPending(key: mine.key, operation: .create)
-    try tx.setState("s", accountId: account, type: "Thing")
-    try tx.setState("s", accountId: "other", type: "Thing")
+    try tx.setServerState("s", accountId: account, type: "Thing")
+    try tx.setServerState("s", accountId: "other", type: "Thing")
     try tx.appendJournal(ChangeSet(accountId: account, source: .local), processId: "p")
     try tx.wipe(accountId: account)
   }
   #expect(try await store.read { tx in try tx.object(key: mine.key) } == nil)
   #expect(try await store.read { tx in try tx.object(key: theirs.key) } == theirs)
-  #expect(try await store.read { tx in try tx.state(accountId: account, type: "Thing") } == nil)
-  #expect(try await store.read { tx in try tx.state(accountId: "other", type: "Thing") } == "s")
+  #expect(try await store.read { tx in try tx.serverState(accountId: account, type: "Thing") } == nil)
+  #expect(try await store.read { tx in try tx.serverState(accountId: "other", type: "Thing") } == "s")
   #expect(try await store.read { tx in try tx.journal(after: 0) } == [])
 }
 

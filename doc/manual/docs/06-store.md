@@ -90,7 +90,7 @@ SQL.
 |---|---|
 | `jinx_object` | One row per synced object: `key`, `account`, `type`, nullable `id`, nullable `server_version`, `local`, nullable `last_error`. |
 | `jinx_pending` | The log: `seq`, `key`, `operation`, `claimed_by`, `claimed_at`.  One row per object at most. |
-| `jinx_state` | The state string per `(account, type)`. |
+| `jinx_server_state` | The server state string per `(account, type)`. |
 | `jinx_subscription` | A query subscription's definition and, separately, its last result. |
 | `jinx_pin` | Pinned ids per `(account, type)`. |
 | `jinx_blob` | The blob index: total length, the byte ranges on disk, pinned flag, last access. |

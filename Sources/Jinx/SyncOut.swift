@@ -308,10 +308,10 @@ extension SyncEngine {
           try tx.setPending(key: orphan.key, operation: .destroy)
         }
 
-        let stored = try tx.state(accountId: accountId, type: batch.type)
+        let stored = try tx.serverState(accountId: accountId, type: batch.type)
         if let stored {
           if stored == set.oldState {
-            try tx.setState(set.newState, accountId: accountId, type: batch.type)
+            try tx.setServerState(set.newState, accountId: accountId, type: batch.type)
           } else {
             outcome.needsSyncIn.insert(batch.type)
           }

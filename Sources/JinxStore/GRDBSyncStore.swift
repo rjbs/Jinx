@@ -112,6 +112,9 @@ public struct GRDBSyncStore: SyncStore {
     migrator.registerMigration("jinx-2") { db in
       try db.execute(sql: "ALTER TABLE jinx_object RENAME COLUMN snapshot TO server_version")
     }
+    migrator.registerMigration("jinx-3") { db in
+      try db.execute(sql: "ALTER TABLE jinx_state RENAME TO jinx_server_state")
+    }
   }
 
   public func read<T: Sendable>(_ body: @Sendable (GRDBTransaction) throws -> T) async throws -> T {
@@ -317,18 +320,18 @@ public struct GRDBTransaction: SyncTransaction {
 
   // MARK: Type state
 
-  public func state(accountId: String, type: String) throws -> String? {
-    try String.fetchOne(db, sql: "SELECT state FROM jinx_state WHERE account = ? AND type = ?", arguments: [accountId, type])
+  public func serverState(accountId: String, type: String) throws -> String? {
+    try String.fetchOne(db, sql: "SELECT state FROM jinx_server_state WHERE account = ? AND type = ?", arguments: [accountId, type])
   }
 
-  public func setState(_ state: String?, accountId: String, type: String) throws {
+  public func setServerState(_ state: String?, accountId: String, type: String) throws {
     if let state {
       try db.execute(
-        sql: "INSERT INTO jinx_state (account, type, state) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET state = excluded.state",
+        sql: "INSERT INTO jinx_server_state (account, type, state) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET state = excluded.state",
         arguments: [accountId, type, state]
       )
     } else {
-      try db.execute(sql: "DELETE FROM jinx_state WHERE account = ? AND type = ?", arguments: [accountId, type])
+      try db.execute(sql: "DELETE FROM jinx_server_state WHERE account = ? AND type = ?", arguments: [accountId, type])
     }
   }
 
@@ -465,7 +468,7 @@ public struct GRDBTransaction: SyncTransaction {
     try db.execute(sql: "DELETE FROM jinx_pin WHERE account = ?", arguments: [accountId])
     try db.execute(sql: "DELETE FROM jinx_pending WHERE account = ?", arguments: [accountId])
     try db.execute(sql: "DELETE FROM jinx_object WHERE account = ?", arguments: [accountId])
-    try db.execute(sql: "DELETE FROM jinx_state WHERE account = ?", arguments: [accountId])
+    try db.execute(sql: "DELETE FROM jinx_server_state WHERE account = ?", arguments: [accountId])
     try db.execute(sql: "DELETE FROM jinx_journal WHERE account = ?", arguments: [accountId])
   }
 }

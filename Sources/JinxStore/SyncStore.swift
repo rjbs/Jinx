@@ -55,8 +55,8 @@ public protocol SyncTransaction {
 
   // MARK: Type state
 
-  func state(accountId: String, type: String) throws -> String?
-  func setState(_ state: String?, accountId: String, type: String) throws
+  func serverState(accountId: String, type: String) throws -> String?
+  func setServerState(_ state: String?, accountId: String, type: String) throws
 
   // MARK: Journal
 

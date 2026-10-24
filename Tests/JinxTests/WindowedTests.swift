@@ -18,7 +18,7 @@ private func byN(_ ascending: Bool = true) -> [JSONValue] {
   let ids = (1...10).map { h.server.create("Item", ["n": .number(Double($0))]) }
   try await h.engine.sync()
   #expect(try await h.engine.objects(type: "Item").isEmpty, "nothing is held without a subscription")
-  #expect(try await h.engine.state(of: "Item") == h.server.state(of: "Item"))
+  #expect(try await h.engine.serverState(of: "Item") == h.server.state(of: "Item"))
 
   try await h.engine.subscribe(QuerySubscription(id: "top", accountId: "acct", type: "Item", sort: byN(false), limit: 3))
   try await h.engine.sync()

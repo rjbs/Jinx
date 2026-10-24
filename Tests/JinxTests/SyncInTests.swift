@@ -13,7 +13,7 @@ import JinxScriptedServer
   try await h.engine.sync()
 
   #expect(try await h.localById("Thing") == [a: ["id": .string(a), "n": 1], b: ["id": .string(b), "n": 2]])
-  #expect(try await h.engine.state(of: "Thing") == h.server.state(of: "Thing"))
+  #expect(try await h.engine.serverState(of: "Thing") == h.server.state(of: "Thing"))
   #expect(methodNames(h.server) == ["Thing/get"])
   let journal = try await h.journal()
   #expect(journal.count == 1)
@@ -73,7 +73,7 @@ import JinxScriptedServer
   try await engine.sync()
   #expect(try await engine.objects(type: "Thing").count == 5)
   #expect(methodNames(server) == ["Thing/get", "Thing/query", "Thing/get", "Thing/query", "Thing/get", "Thing/query", "Thing/get"])
-  #expect(try await engine.state(of: "Thing") == server.state(of: "Thing"))
+  #expect(try await engine.serverState(of: "Thing") == server.state(of: "Thing"))
   let journal = try await store.read { tx in try tx.journal(after: 0) }
   #expect(journal.count == 3, "one commit per page")
 }
