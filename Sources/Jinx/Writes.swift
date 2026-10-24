@@ -26,7 +26,7 @@ public struct Writer<Transaction: SyncTransaction>: ~Copyable {
     try Self.checkNoForeignCreationReferences(value, type: type, descriptors: descriptors)
     var value = value
     value["id"] = nil
-    let object = try tx.insert(NewObject(accountId: accountId, type: type, id: nil, snapshot: nil, local: value))
+    let object = try tx.insert(NewObject(accountId: accountId, type: type, id: nil, serverVersion: nil, local: value))
     try tx.setPending(key: object.key, operation: .create)
     changeSet.noteCreated(object.key, type: type)
     return object.key
@@ -67,7 +67,7 @@ public struct Writer<Transaction: SyncTransaction>: ~Copyable {
     case .create:
       break  // the create will send the current value
     case .update, nil:
-      if let snapshot = object.snapshot, newValue.isJMAPEquivalent(to: snapshot) {
+      if let serverVersion = object.serverVersion, newValue.isJMAPEquivalent(to: serverVersion) {
         try tx.clearPending(key: key)
       } else {
         try tx.setPending(key: key, operation: .update)

@@ -31,10 +31,10 @@ private func assertMerge(
 }
 
 @Test func mergedResultDiffsOnlyOverOwnedKeys() throws {
-  let snapshot: JSONValue = ["title": "old", "foreign": ["a": 1]]
+  let serverVersion: JSONValue = ["title": "old", "foreign": ["a": 1]]
   let encoding: JSONValue = ["title": "new"]
-  let merged = try snapshot.mergingOwnedProperties(["title"], from: encoding)
-  #expect(try PatchObject.diff(from: snapshot, to: merged) == ["title": "new"])
+  let merged = try serverVersion.mergingOwnedProperties(["title"], from: encoding)
+  #expect(try PatchObject.diff(from: serverVersion, to: merged) == ["title": "new"])
 }
 
 @Test func mergeRefusesNonObjects() {

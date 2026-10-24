@@ -88,7 +88,7 @@ SQL.
 
 | Table | What it holds |
 |---|---|
-| `jinx_object` | One row per synced object: `key`, `account`, `type`, nullable `id`, nullable `snapshot`, `local`, nullable `last_error`. |
+| `jinx_object` | One row per synced object: `key`, `account`, `type`, nullable `id`, nullable `server_version`, `local`, nullable `last_error`. |
 | `jinx_pending` | The log: `seq`, `key`, `operation`, `claimed_by`, `claimed_at`.  One row per object at most. |
 | `jinx_state` | The state string per `(account, type)`. |
 | `jinx_subscription` | A query subscription's definition and, separately, its last result. |

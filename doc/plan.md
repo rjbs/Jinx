@@ -51,11 +51,11 @@ in its own database file beside its client-only tables.
 
 Every synced object is a cell with three parts and a possible log entry.
 
-- **Server snapshot.**  The last full JSON object the server is known to
+- **Server server version.**  The last full JSON object the server is known to
   hold, exactly as fetched, including properties the app does not model.
   Null for an object the server has not yet seen.
 - **Local value.**  What the app reads.  In Jinx's own store this is also
-  JSON, and it equals the snapshot unless there is a pending change.  In
+  JSON, and it equals the server version unless there is a pending change.  In
   an app-owned store it may be the app's row shape, encoded to JSON on
   demand.
 - **Fetch level.**  Which property set the local copy holds: summary or
@@ -65,14 +65,14 @@ Every synced object is a cell with three parts and a possible log entry.
   in flight.  The entry stores no patch.
 
 The patch is computed at sync-out time as the diff between the server
-snapshot and the local value.  Several edits collapse into one patch; an
+server version and the local value.  Several edits collapse into one patch; an
 edit that restores the server value produces an empty patch and drops
 out; undo is just another edit.  This is NerfJournal's design, taken
 from Fastmail's offline caching proxy, and it is adopted whole.
 
 On sync-in, an object with a pending entry is **rebased**: compute the
-patch from the old snapshot to the local value, apply it to the fetched
-object, and store the fetched object as the new snapshot.  A pending
+patch from the old server version to the local value, apply it to the fetched
+object, and store the fetched object as the new server version.  A pending
 local property wins until it is synced out; every other property takes the
 server's value.  If the rebased value equals the fetched object, the
 server already has the change and the entry is dropped.  Rebase works at
@@ -177,8 +177,8 @@ that already has the client's changes.
 ### Sync out
 
 1. Claim unclaimed log entries in one transaction.  Read the claimed
-   entries in order and snapshot each object's local value and server
-   snapshot in memory.
+   entries in order and server version each object's local value and server
+   server version in memory.
 2. Build one request with a `/set` per type, in dependency order.
    Creates send the full local value under a client-chosen creation id;
    updates send a patch, and an empty patch means the entry is dropped;
@@ -199,7 +199,7 @@ that already has the client's changes.
 3. Send.  On transport failure or `serverUnavailable`, release the
    claims and retry with backoff.
 4. Apply the response in one transaction: set ids for `created`, set the
-   snapshot for `created` and `updated` to what was sent merged with any
+   server version for `created` and `updated` to what was sent merged with any
    server-set properties returned, delete rows for `destroyed` and for
    `notDestroyed` with `notFound`, classify everything else as an error
    (below), advance the type's state only if `oldState` matches the
@@ -281,7 +281,7 @@ reads is checked by the compiler rather than by convention.
 out to every item in the call.  Retryable (`serverFail`,
 `serverUnavailable`, `stateMismatch`, `rateLimit`, transport): keep the
 entry, back off.  Permanent (`invalidProperties`, `notFound`,
-`forbidden`, `invalidPatch`): revert that object alone to its snapshot,
+`forbidden`, `invalidPatch`): revert that object alone to its server version,
 record the error on it, delete its entry, and report it.  Edits made
 after the failed request was sent are never reverted, which is the place
 NerfJournal's study found Fastmail's in-memory layer gets wrong.
@@ -297,7 +297,7 @@ local key never changes, so nothing in the app's tables or UI moves.  A type wit
 and the documentation says so.
 
 **Foreign properties survive** because every write form above changes
-only what it names, the snapshot is the object as fetched, and the diff
+only what it names, the server version is the object as fetched, and the diff
 between them therefore mentions only what the app changed.  The diff
 recurses into objects and emits per-entry patches, so a map such as
 Task's `keywords` or `links` keeps entries other clients put there; it
@@ -329,7 +329,7 @@ own policy.
 ## Storage
 
 **`SyncStore`** is an async protocol with one transactional entry point
-and these responsibilities: objects (get, put, delete; snapshot, local
+and these responsibilities: objects (get, put, delete; server version, local
 value, fetch level, last error), the pending log (append, claim with a
 staleness timeout, release, delete), per-type state strings, subscription
 definitions and their id lists, retention metadata, and the blob index.

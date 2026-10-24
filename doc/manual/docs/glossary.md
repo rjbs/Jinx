@@ -66,7 +66,7 @@ object, assigned when it first exists locally and never changed.
 Unit 5.
 
 **Local value** (`StoredObject.local`, `SyncedObject.value`).  The
-object as the app sees it: the snapshot plus any pending change.
+object as the app sees it: the server version plus any pending change.
 Unit 5.
 
 **Owned properties** (`ownedProperties`).  The properties a
@@ -106,7 +106,7 @@ the engine tests run against.  Unit 13.
 **Session** (`Session`).  The decoded session resource, with the
 limits and URL templates.  Unit 3.
 
-**Snapshot** (`StoredObject.snapshot`).  The object as the server
+**Server version** (`StoredObject.server version`).  The object as the server
 last reported it; `nil` if the server has never seen it.  Unit 5.
 
 **Subscription** (`QuerySubscription`).  A live query the engine keeps

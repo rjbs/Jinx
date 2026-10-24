@@ -9,7 +9,7 @@ extension JSONValue {
   /// This is how an app with its own model replaces an object: it
   /// encodes its model to JSON, naming only the properties it owns, and
   /// the merge keeps the properties it does not model.  Diffing the
-  /// result against the server snapshot then names only owned
+  /// result against the server version then names only owned
   /// properties, so other clients' data on the server survives.
   public func mergingOwnedProperties(
     _ owned: Set<String>,

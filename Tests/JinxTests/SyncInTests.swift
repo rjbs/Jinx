@@ -21,7 +21,7 @@ import JinxScriptedServer
   #expect(journal[0].types["Thing"]?.created.count == 2)
   let object = try #require(try await h.engine.object(type: "Thing", id: a))
   #expect(object.pending == nil)
-  #expect(try await h.stored(object.key)?.snapshot == ["id": .string(a), "n": 1])
+  #expect(try await h.stored(object.key)?.serverVersion == ["id": .string(a), "n": 1])
 }
 
 @Test func incrementalSyncInAppliesCreatesUpdatesAndDestroys() async throws {

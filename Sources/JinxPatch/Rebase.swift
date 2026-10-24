@@ -7,7 +7,7 @@ public struct Rebase: Sendable, Hashable {
   /// change re-applied on top.
   public var local: JSONValue
 
-  /// The pending change itself, as a patch from the old snapshot to the
+  /// The pending change itself, as a patch from the old server version to the
   /// old local value.
   public var patch: PatchObject
 
@@ -25,17 +25,17 @@ extension Rebase {
   /// of one map do not conflict.
   ///
   /// - Parameters:
-  ///   - snapshot: the server object as last known before `fetched`.
-  ///   - local: the local value, which differs from `snapshot` by the
+  ///   - serverVersion: the server object as last known before `fetched`.
+  ///   - local: the local value, which differs from `serverVersion` by the
   ///     pending change.
   ///   - fetched: the server object as just fetched.
   public init(
-    snapshot: JSONValue,
+    serverVersion: JSONValue,
     local: JSONValue,
     fetched: JSONValue,
     mayPatch: MayPatch = patchAnywhere
   ) throws(PatchError) {
-    patch = try PatchObject.diff(from: snapshot, to: local, mayPatch: mayPatch)
+    patch = try PatchObject.diff(from: serverVersion, to: local, mayPatch: mayPatch)
     self.local = try fetched.applying(patch)
     isRedundant = self.local.isJMAPEquivalent(to: fetched)
   }

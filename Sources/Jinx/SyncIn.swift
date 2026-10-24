@@ -286,20 +286,20 @@ extension SyncEngine {
       }
       switch existing.pending {
       case nil:
-        if existing.snapshot == fetched && existing.local == fetched { return }
-        existing.snapshot = fetched
+        if existing.serverVersion == fetched && existing.local == fetched { return }
+        existing.serverVersion = fetched
         existing.local = fetched
         try tx.update(existing)
         changeSet.noteUpdated(existing.key, type: type)
       case .update, .create:
-        let rebase = try Rebase(snapshot: existing.snapshot ?? .object([:]), local: existing.local, fetched: fetched, mayPatch: descriptor.mayPatch)
-        existing.snapshot = fetched
+        let rebase = try Rebase(serverVersion: existing.serverVersion ?? .object([:]), local: existing.local, fetched: fetched, mayPatch: descriptor.mayPatch)
+        existing.serverVersion = fetched
         existing.local = rebase.local
         try tx.update(existing)
         if rebase.isRedundant { try tx.clearPending(key: existing.key) }
         changeSet.noteUpdated(existing.key, type: type)
       case .destroy:
-        existing.snapshot = fetched
+        existing.serverVersion = fetched
         try tx.update(existing)
       }
       return
@@ -310,9 +310,9 @@ extension SyncEngine {
        var candidate = try tx.object(accountId: accountId, type: type, property: identity.property, equals: value),
        candidate.id == nil
     {
-      let rebase = try Rebase(snapshot: candidate.snapshot ?? .object([:]), local: candidate.local, fetched: fetched, mayPatch: descriptor.mayPatch)
+      let rebase = try Rebase(serverVersion: candidate.serverVersion ?? .object([:]), local: candidate.local, fetched: fetched, mayPatch: descriptor.mayPatch)
       candidate.id = id
-      candidate.snapshot = fetched
+      candidate.serverVersion = fetched
       candidate.local = rebase.local
       try tx.update(candidate)
       if rebase.isRedundant {
@@ -325,7 +325,7 @@ extension SyncEngine {
       return
     }
 
-    let inserted = try tx.insert(NewObject(accountId: accountId, type: type, id: id, snapshot: fetched, local: fetched))
+    let inserted = try tx.insert(NewObject(accountId: accountId, type: type, id: id, serverVersion: fetched, local: fetched))
     changeSet.noteCreated(inserted.key, type: type)
   }
 

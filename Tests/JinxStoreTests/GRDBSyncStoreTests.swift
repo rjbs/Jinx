@@ -15,17 +15,17 @@ private func insert(
   _ store: GRDBSyncStore,
   type: String = "Thing",
   id: String? = nil,
-  snapshot: JSONValue? = nil,
+  serverVersion: JSONValue? = nil,
   local: JSONValue
 ) async throws -> StoredObject {
   try await store.write { tx in
-    try tx.insert(NewObject(accountId: account, type: type, id: id, snapshot: snapshot, local: local))
+    try tx.insert(NewObject(accountId: account, type: type, id: id, serverVersion: serverVersion, local: local))
   }
 }
 
 @Test func insertAssignsIncreasingKeysAndRoundTrips() async throws {
   let store = try makeStore()
-  let a = try await insert(store, id: "a", snapshot: ["t": 1], local: ["t": 1])
+  let a = try await insert(store, id: "a", serverVersion: ["t": 1], local: ["t": 1])
   let b = try await insert(store, local: ["t": 2])
   #expect(a.key.rawValue < b.key.rawValue)
   #expect(a.key.creationId == "jinx\(a.key.rawValue)")
@@ -35,7 +35,7 @@ private func insert(
   let fetched = try await store.read { tx in try tx.object(key: a.key) }
   #expect(fetched == a)
   #expect(try await store.read { tx in try tx.object(accountId: account, type: "Thing", id: "a") } == a)
-  #expect(try await store.read { tx in try tx.object(key: b.key) }?.snapshot == nil)
+  #expect(try await store.read { tx in try tx.object(key: b.key) }?.serverVersion == nil)
   #expect(try await store.read { tx in try tx.objects(accountId: account, type: "Thing") } == [a, b])
   #expect(try await store.read { tx in try tx.objects(keys: [b.key, a.key]) } == [a, b])
   #expect(try await store.read { tx in try tx.objects(accountId: account, type: "Thing", ids: ["a", "zz"]) } == [a])
@@ -47,7 +47,7 @@ private func insert(
   let store = try makeStore()
   var object = try await insert(store, local: ["t": 1])
   object.id = "assigned"
-  object.snapshot = ["t": 1, "server": true]
+  object.serverVersion = ["t": 1, "server": true]
   object.local = ["t": 2]
   object.lastError = SetError(type: SetError.invalidProperties, properties: ["t"], extra: ["n": 1])
   let expected = object
@@ -168,7 +168,7 @@ private func insert(
   let store = try makeStore()
   let mine = try await insert(store, local: [:])
   let theirs = try await store.write { tx in
-    try tx.insert(NewObject(accountId: "other", type: "Thing", id: "o", snapshot: nil, local: [:]))
+    try tx.insert(NewObject(accountId: "other", type: "Thing", id: "o", serverVersion: nil, local: [:]))
   }
   try await store.write { tx in
     try tx.setPending(key: mine.key, operation: .create)

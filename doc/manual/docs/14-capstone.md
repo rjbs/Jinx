@@ -162,10 +162,10 @@ try await engine.update(email.key, patch: ["keywords/$seen": true])
 ```
 
 The write path applies the patch to the local value, sees that it
-differs from the snapshot, appends a pending `update` entry, commits
+differs from the server version, appends a pending `update` entry, commits
 a change set with source `local`, and requests a pass.  The UI
 updates at once from that change set, with `pending` set on the
-object.  After the debounce the sync-out claims the entry, diffs snapshot
+object.  After the debounce the sync-out claims the entry, diffs server version
 to local, and sends:
 
 ```json
@@ -175,7 +175,7 @@ to local, and sends:
 }, "c0"]
 ```
 
-The response's `updated` confirms it; the snapshot becomes the sent
+The response's `updated` confirms it; the server version becomes the sent
 value, the entry is cleared, and the change set with source `syncOut`
 names the key.  Because this process changed an Email, the next
 windowed round re-runs the inbox query even though `Email/changes`

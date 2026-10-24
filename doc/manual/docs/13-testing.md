@@ -42,7 +42,7 @@ so the engine cannot tell it from a network, and it is generic: any
 `Foo/get`, `Foo/changes`, `Foo/set`, `Foo/query` and
 `Foo/queryChanges` works on objects that are plain JSON, for whatever
 type names a test uses.  It keeps a modification sequence per account
-and type, tombstones for destroyed objects, and snapshots of query
+and type, tombstones for destroyed objects, and server versions of query
 results, so that `/changes` between any two states it has held, and
 `/queryChanges` where a type is configured to allow it, are computed
 rather than scripted.  It resolves creation ids and result references,

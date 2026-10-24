@@ -56,7 +56,7 @@ needs a retry, with a cap of twenty rounds.
    an earlier `requestTooLarge` lowered it.  For each item:
     - a create sends the whole local value, minus any `id`, under the
       creation id `jinx<key>`;
-    - an update sends the diff from snapshot to local, with the type's
+    - an update sends the diff from server version to local, with the type's
       veto, and if the diff is empty the entry is dropped here, since
       there is nothing to say;
     - a destroy sends the id, and a destroy of an object with no id is
@@ -111,11 +111,11 @@ Otherwise the call succeeded and each item is reconciled on its own.
 
 | Operation | Outcome | Effect |
 |---|---|---|
-| create | in `created` | Confirm: set the id, set the snapshot to what was sent merged with the server-set properties returned, report the id on the change stream. |
+| create | in `created` | Confirm: set the id, set the server version to what was sent merged with the server-set properties returned, report the id on the change stream. |
 | create | `notCreated` with `alreadyExists` | Confirm with the `existingId` the server supplied, and flag the type for a sync-in to fetch the rest of that object. |
 | create | `notCreated` with `invalidProperties` naming the client identity property | The server has an object with this `uid` already.  Query for it by the identity filter, adopt its id, and mark the object `update` so any local differences are synced out next round.  If the query finds nothing, record a permanent error. |
 | create | any other `notCreated` | Retryable: release.  Permanent: revert. |
-| update | in `updated` | Confirm: snapshot becomes what was sent merged with server-set properties. |
+| update | in `updated` | Confirm: server version becomes what was sent merged with server-set properties. |
 | update | `notUpdated` | Retryable: release.  Permanent: revert, and if the error is `notFound`, flag a sync-in, since the server has destroyed something we hold. |
 | destroy | in `destroyed`, or `notDestroyed` with `notFound` | Delete the row.  Either way the server does not have it. |
 | destroy | any other `notDestroyed` | Retryable: release.  Permanent: revert. |
@@ -131,11 +131,11 @@ sync-out, and the type is flagged for a sync-in rather than have its state
 jump over changes it has not seen.
 
 Confirming and reverting both honor the edited-in-flight rule from
-unit 5.  `confirmCreate` and `confirmUpdate` set the snapshot and
+unit 5.  `confirmCreate` and `confirmUpdate` set the server version and
 clear the entry only if the entry is still the one that was sent; if
 an edit re-added the entry with a later sequence number, the local
 value keeps the edit and the new entry waits.  `revert` sets
-`lastError` either way, but puts the snapshot back as the local value
+`lastError` either way, but puts the server version back as the local value
 only if there was no edit in flight.
 
 ## Classification
@@ -153,7 +153,7 @@ Every error met during a sync-out is sorted into three classes by
 
 Retryable keeps the entry and releases the claim.  Too large halves
 the batch.  Permanent reverts the object: local value back to the
-snapshot, error recorded, entry cleared, and the change set names the
+server version, error recorded, entry cleared, and the change set names the
 key in `failed` so the app can tell the user.  `invalidProperties`,
 `notFound`, `forbidden` and `invalidPatch` are permanent because
 sending the same thing again would draw the same answer.

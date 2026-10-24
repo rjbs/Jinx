@@ -32,7 +32,7 @@ public protocol SyncTransaction {
   func count(accountId: String, type: String) throws -> Int
 
   func insert(_ object: NewObject) throws -> StoredObject
-  /// Stores id, snapshot, local and lastError for an existing key.
+  /// Stores id, serverVersion, local and lastError for an existing key.
   /// The pending state is managed through the log methods below.
   func update(_ object: StoredObject) throws
   func delete(key: LocalKey) throws

@@ -107,6 +107,11 @@ public struct GRDBSyncStore: SyncStore {
         );
         """)
     }
+    // The column was called snapshot until the rename to serverVersion
+    // on 2026-10-23; jinx-1 is history and must not change. -- claude, 2026-10-23
+    migrator.registerMigration("jinx-2") { db in
+      try db.execute(sql: "ALTER TABLE jinx_object RENAME COLUMN snapshot TO server_version")
+    }
   }
 
   public func read<T: Sendable>(_ body: @Sendable (GRDBTransaction) throws -> T) async throws -> T {
@@ -129,7 +134,7 @@ public struct GRDBTransaction: SyncTransaction {
   // MARK: Objects
 
   private static let objectColumns = """
-    o.key, o.account, o.type, o.id, o.snapshot, o.local, o.last_error, p.operation AS pending
+    o.key, o.account, o.type, o.id, o.server_version, o.local, o.last_error, p.operation AS pending
     """
 
   private static let objectFrom = """
@@ -151,7 +156,7 @@ public struct GRDBTransaction: SyncTransaction {
       accountId: row["account"],
       type: row["type"],
       id: row["id"],
-      snapshot: try (row["snapshot"] as String?).map { try JSONValue(parsing: $0) },
+      serverVersion: try (row["server_version"] as String?).map { try JSONValue(parsing: $0) },
       local: try JSONValue(parsing: row["local"] as String),
       pending: (row["pending"] as String?).flatMap(PendingOperation.init(rawValue:)),
       lastError: try (row["last_error"] as String?).map { try JSONDecoder().decode(SetError.self, from: Data($0.utf8)) }
@@ -209,12 +214,12 @@ public struct GRDBTransaction: SyncTransaction {
 
   public func insert(_ object: NewObject) throws -> StoredObject {
     try db.execute(
-      sql: "INSERT INTO jinx_object (account, type, id, snapshot, local) VALUES (?, ?, ?, ?, ?)",
+      sql: "INSERT INTO jinx_object (account, type, id, server_version, local) VALUES (?, ?, ?, ?, ?)",
       arguments: [
         object.accountId,
         object.type,
         object.id,
-        try object.snapshot?.serializedString(),
+        try object.serverVersion?.serializedString(),
         try object.local.serializedString(),
       ]
     )
@@ -223,17 +228,17 @@ public struct GRDBTransaction: SyncTransaction {
       accountId: object.accountId,
       type: object.type,
       id: object.id,
-      snapshot: object.snapshot,
+      serverVersion: object.serverVersion,
       local: object.local
     )
   }
 
   public func update(_ object: StoredObject) throws {
     try db.execute(
-      sql: "UPDATE jinx_object SET id = ?, snapshot = ?, local = ?, last_error = ? WHERE key = ?",
+      sql: "UPDATE jinx_object SET id = ?, server_version = ?, local = ?, last_error = ? WHERE key = ?",
       arguments: [
         object.id,
-        try object.snapshot?.serializedString(),
+        try object.serverVersion?.serializedString(),
         try object.local.serializedString(),
         try object.lastError.map { String(decoding: try JSONEncoder().encode($0), as: UTF8.self) },
         object.key.rawValue,

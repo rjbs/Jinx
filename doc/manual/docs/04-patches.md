@@ -110,7 +110,7 @@ properties the app owns, it copies exactly those members from the
 encoding into the full object, adding, replacing or removing each,
 and leaves every other member as it was.  The result is a full object
 that differs from the original only in owned properties, and the diff
-of that against the snapshot names only owned properties.
+of that against the server version names only owned properties.
 
 ```swift
 let encoding: JSONValue = ["uid": "7d1c", "title": "Draft the manual", "due": "2026-10-24"]
@@ -132,7 +132,7 @@ to mention.
 ## Rebase
 
 Now the hard case.  The app has a pending edit: the local value
-differs from the snapshot of the server object by one patch, not yet
+differs from the server version by one patch, not yet
 synced out.  A sync-in arrives with a newer version of the same object.  What
 is the local value now?
 
@@ -147,7 +147,7 @@ is the local value now?
 </marker>
 </defs>
 <rect class="blk" x="40" y="30" width="220" height="60" rx="4"/>
-<text class="nm" x="150" y="55" text-anchor="middle">snapshot</text>
+<text class="nm" x="150" y="55" text-anchor="middle">serverVersion</text>
 <text class="sub" x="150" y="75" text-anchor="middle">the server object as last fetched</text>
 <rect class="blk" x="500" y="30" width="220" height="60" rx="4"/>
 <text class="nm" x="610" y="55" text-anchor="middle">local</text>
@@ -170,10 +170,10 @@ is the local value now?
 <figcaption>The pending patch is recomputed from the old pair and re-applied to the new server object.</figcaption>
 </figure>
 
-Three inputs: the snapshot, the local value and the fetched object.
-Step one diffs snapshot to local, which recovers the pending patch.
+Three inputs: the server version, the local value and the fetched object.
+Step one diffs server version to local, which recovers the pending patch.
 Step two applies that patch to the fetched object, and the result is
-the new local value.  The fetched object becomes the new snapshot.
+the new local value.  The fetched object becomes the new server version.
 
 The consequence is the whole of Jinx's default conflict rule, and it
 is worth saying plainly: **a property with a pending local change
@@ -184,11 +184,11 @@ and two clients editing the same scalar resolve as last write wins
 when the pending edit is eventually synced out.
 
 ```swift
-let snapshot: JSONValue = ["title": "Draft", "keywords": ["urgent": true]]
+let serverVersion: JSONValue = ["title": "Draft", "keywords": ["urgent": true]]
 let local: JSONValue    = ["title": "Draft the manual", "keywords": ["urgent": true]]
 let fetched: JSONValue  = ["title": "Draft", "keywords": ["urgent": true, "waiting": true]]
 
-let rebase = try Rebase(snapshot: snapshot, local: local, fetched: fetched)
+let rebase = try Rebase(serverVersion: serverVersion, local: local, fetched: fetched)
 rebase.patch        // ["title": "Draft the manual"]
 rebase.local        // ["title": "Draft the manual", "keywords": ["urgent": true, "waiting": true]]
 rebase.isRedundant  // false
@@ -204,7 +204,7 @@ an explicit `null` where the patch removed a property is still
 recognized as already having the change.
 
 `Rebase` does no I/O.  Unit 5 shows where the engine calls it and why
-the snapshot it passes is always the one the local value was edited
+the server version it passes is always the one the local value was edited
 against.
 
 ## Where to look

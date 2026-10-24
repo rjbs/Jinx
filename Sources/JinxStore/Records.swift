@@ -46,8 +46,8 @@ public struct StoredObject: Sendable, Hashable {
   public var id: String?
   /// The object as the server last reported it, or `nil` if the server
   /// has never seen it.
-  public var snapshot: JSONValue?
-  /// The object as the app sees it: the snapshot plus any pending change.
+  public var serverVersion: JSONValue?
+  /// The object as the app sees it: the server version plus any pending change.
   public var local: JSONValue
   public var pending: PendingOperation?
   /// The last permanent error a sync-out produced for this object.
@@ -58,7 +58,7 @@ public struct StoredObject: Sendable, Hashable {
     accountId: String,
     type: String,
     id: String?,
-    snapshot: JSONValue?,
+    serverVersion: JSONValue?,
     local: JSONValue,
     pending: PendingOperation? = nil,
     lastError: SetError? = nil
@@ -67,7 +67,7 @@ public struct StoredObject: Sendable, Hashable {
     self.accountId = accountId
     self.type = type
     self.id = id
-    self.snapshot = snapshot
+    self.serverVersion = serverVersion
     self.local = local
     self.pending = pending
     self.lastError = lastError
@@ -79,14 +79,14 @@ public struct NewObject: Sendable, Hashable {
   public var accountId: String
   public var type: String
   public var id: String?
-  public var snapshot: JSONValue?
+  public var serverVersion: JSONValue?
   public var local: JSONValue
 
-  public init(accountId: String, type: String, id: String?, snapshot: JSONValue?, local: JSONValue) {
+  public init(accountId: String, type: String, id: String?, serverVersion: JSONValue?, local: JSONValue) {
     self.accountId = accountId
     self.type = type
     self.id = id
-    self.snapshot = snapshot
+    self.serverVersion = serverVersion
     self.local = local
   }
 }

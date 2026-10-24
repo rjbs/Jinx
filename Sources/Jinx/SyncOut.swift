@@ -101,8 +101,8 @@ extension SyncEngine {
             dropped.append(item.object.key)
             continue
           }
-          let snapshot = item.object.snapshot ?? .object([:])
-          let patch = try PatchObject.diff(from: snapshot, to: item.object.local, mayPatch: descriptor.mayPatch)
+          let serverVersion = item.object.serverVersion ?? .object([:])
+          let patch = try PatchObject.diff(from: serverVersion, to: item.object.local, mayPatch: descriptor.mayPatch)
           if patch.isEmpty {
             dropped.append(item.object.key)
             continue
@@ -304,7 +304,7 @@ extension SyncEngine {
                 try tx.object(key: key) == nil,
                 try tx.object(accountId: accountId, type: batch.type, id: id) == nil
           else { continue }
-          let orphan = try tx.insert(NewObject(accountId: accountId, type: batch.type, id: id, snapshot: props, local: props))
+          let orphan = try tx.insert(NewObject(accountId: accountId, type: batch.type, id: id, serverVersion: props, local: props))
           try tx.setPending(key: orphan.key, operation: .destroy)
         }
 
@@ -357,12 +357,12 @@ extension SyncEngine {
   ) throws {
     guard var object = try tx.object(key: item.object.key) else { return }
     object.id = id
-    var snapshot = sent ?? item.object.local
-    snapshot["id"] = .string(id)
+    var serverVersion = sent ?? item.object.local
+    serverVersion["id"] = .string(id)
     if case .object(let props) = serverSet {
-      for (property, value) in props { snapshot[property] = value }
+      for (property, value) in props { serverVersion[property] = value }
     }
-    object.snapshot = snapshot
+    object.serverVersion = serverVersion
     let edited = try editedInFlight(item, in: tx)
     if edited {
       object.local["id"] = .string(id)
@@ -370,7 +370,7 @@ extension SyncEngine {
         for (property, value) in props where property != "id" { object.local[property] = value }
       }
     } else {
-      object.local = snapshot
+      object.local = serverVersion
       try tx.clearPending(key: object.key)
     }
     object.lastError = nil
@@ -387,17 +387,17 @@ extension SyncEngine {
     changeSet: inout ChangeSet
   ) throws {
     guard var object = try tx.object(key: item.object.key) else { return }
-    var snapshot = sent ?? item.object.local
+    var serverVersion = sent ?? item.object.local
     if case .object(let props) = serverSet {
-      for (property, value) in props { snapshot[property] = value }
+      for (property, value) in props { serverVersion[property] = value }
     }
-    object.snapshot = snapshot
+    object.serverVersion = serverVersion
     if try editedInFlight(item, in: tx) {
       if case .object(let props) = serverSet {
         for (property, value) in props { object.local[property] = value }
       }
     } else {
-      object.local = snapshot
+      object.local = serverVersion
       try tx.clearPending(key: object.key)
     }
     object.lastError = nil
@@ -405,7 +405,7 @@ extension SyncEngine {
     changeSet.noteUpdated(object.key, type: object.type)
   }
 
-  /// A permanent failure: revert this object alone to its snapshot,
+  /// A permanent failure: revert this object alone to its server version,
   /// unless it was edited in flight, and record the error.
   private static func revert(_ item: SyncOutItem, error: SetError, in tx: Store.Transaction, changeSet: inout ChangeSet) throws {
     guard var object = try tx.object(key: item.object.key) else { return }
@@ -413,7 +413,7 @@ extension SyncEngine {
     if try editedInFlight(item, in: tx) {
       try tx.update(object)
     } else {
-      if let snapshot = object.snapshot { object.local = snapshot }
+      if let serverVersion = object.serverVersion { object.local = serverVersion }
       try tx.update(object)
       try tx.clearPending(key: object.key)
     }
@@ -450,7 +450,7 @@ extension SyncEngine {
       guard var object = try tx.object(key: key) else { return }
       object.id = id
       object.local["id"] = .string(id)
-      object.snapshot = object.local
+      object.serverVersion = object.local
       try tx.update(object)
       try tx.setPending(key: key, operation: .update)
       changeSet.noteIdAssigned(id, to: key, type: type)
