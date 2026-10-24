@@ -28,7 +28,7 @@ public enum TaskTypes {
     TypeDescriptor(
       name: "Task",
       capability: capability,
-      dependsOn: ["TaskList"],
+      syncAfter: ["TaskList"],
       ownedProperties: ownedProperties,
       clientIdentity: .init(property: "uid"),
       mayPatch: jscalendarMayPatch

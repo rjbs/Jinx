@@ -15,7 +15,7 @@ let taskType = TypeDescriptor(
   clientIdentity: .init(property: "uid")
 )
 let trackType = TypeDescriptor(name: "Track", capability: "urn:test:music")
-let playlistType = TypeDescriptor(name: "Playlist", capability: "urn:test:music", dependsOn: ["Track"])
+let playlistType = TypeDescriptor(name: "Playlist", capability: "urn:test:music", syncAfter: ["Track"])
 
 struct Harness {
   let server: ScriptedServer

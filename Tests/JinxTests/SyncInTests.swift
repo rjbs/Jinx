@@ -115,7 +115,7 @@ import JinxScriptedServer
   #expect(methodNames(h.server) == ["Track/changes", "Track/get", "Track/get", "Playlist/changes", "Playlist/get", "Playlist/get"])
 
   #expect(throws: SyncError.self) {
-    try [TypeDescriptor(name: "A", capability: "c", dependsOn: ["B"]), TypeDescriptor(name: "B", capability: "c", dependsOn: ["A"])].inDependencyOrder()
+    try [TypeDescriptor(name: "A", capability: "c", syncAfter: ["B"]), TypeDescriptor(name: "B", capability: "c", syncAfter: ["A"])].inDependencyOrder()
   }
 }
 

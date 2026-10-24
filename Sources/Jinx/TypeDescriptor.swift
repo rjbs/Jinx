@@ -36,7 +36,7 @@ public struct TypeDescriptor: Sendable {
   public var capability: String
   public var mode: Mode
   /// Types this one references and therefore syncs after.
-  public var dependsOn: [String]
+  public var syncAfter: [String]
   /// Properties holding ids of other types, property name to type
   /// name.  A property may hold one id, an array of ids, or an object
   /// keyed by id.  A retained object keeps the objects it references
@@ -61,7 +61,7 @@ public struct TypeDescriptor: Sendable {
     name: String,
     capability: String,
     mode: Mode = .full,
-    dependsOn: [String] = [],
+    syncAfter: [String] = [],
     references: [String: String] = [:],
     properties: [String]? = nil,
     ownedProperties: Set<String>? = nil,
@@ -73,7 +73,7 @@ public struct TypeDescriptor: Sendable {
     self.name = name
     self.capability = capability
     self.mode = mode
-    self.dependsOn = dependsOn
+    self.syncAfter = syncAfter
     self.references = references
     self.properties = properties
     self.ownedProperties = ownedProperties
@@ -107,7 +107,7 @@ extension [TypeDescriptor] {
       if done.contains(name) { return }
       guard let descriptor = byName[name] else { throw .unknownType(name) }
       guard visiting.insert(name).inserted else { throw .dependencyCycle(name) }
-      for dependency in descriptor.dependsOn {
+      for dependency in descriptor.syncAfter {
         try visit(dependency)
       }
       visiting.remove(name)

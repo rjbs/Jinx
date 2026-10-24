@@ -27,7 +27,7 @@ Units 7 and 9.
 **Descriptor** (`TypeDescriptor`).  What the engine knows about a
 type.  Unit 7.
 
-**Dependency order** (`dependsOn`, `inDependencyOrder()`).  The order
+**Dependency order** (`syncAfter`, `inDependencyOrder()`).  The order
 types are fetched and synced out in, so that a referenced type precedes
 its referrer.  Unit 7.
 

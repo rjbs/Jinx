@@ -61,7 +61,7 @@ public enum MailTypes {
       name: "Email",
       capability: capability,
       mode: .windowed,
-      dependsOn: ["Mailbox", "Thread"],
+      syncAfter: ["Mailbox", "Thread"],
       references: ["threadId": "Thread", "mailboxIds": "Mailbox"],
       properties: properties,
       ownedProperties: ["keywords", "mailboxIds"],
@@ -83,7 +83,7 @@ public enum MailTypes {
   public static let emailSubmission = TypeDescriptor(
     name: "EmailSubmission",
     capability: submissionCapability,
-    dependsOn: ["Identity", "Email"],
+    syncAfter: ["Identity", "Email"],
     ownedProperties: ["undoStatus"]
   )
 

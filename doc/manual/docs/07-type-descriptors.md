@@ -24,7 +24,7 @@ each request.
 is held locally, or only what subscriptions, pins, pending changes and
 references retain.  Unit 10.
 
-**`dependsOn`**: the types this one must sync after.  A sync-in fetches
+**`syncAfter`**: the types this one must sync after.  A sync-in fetches
 types in dependency order within one request, and a sync-out sends its
 `/set` calls in the same order.  Juke's Track must precede Playlist
 because a playlist is a server-evaluated query over tracks.
@@ -146,7 +146,7 @@ public static func task(ownedProperties: Set<String>? = nil) -> TypeDescriptor {
   TypeDescriptor(
     name: "Task",
     capability: capability,
-    dependsOn: ["TaskList"],
+    syncAfter: ["TaskList"],
     ownedProperties: ownedProperties,
     clientIdentity: .init(property: "uid"),
     mayPatch: jscalendarMayPatch
@@ -178,7 +178,7 @@ every sync-in and sync-out.
 
 Mutual references are not cycles.  Email depends on Thread and Thread
 references Email, which is fine, because `references` is about
-retention and `dependsOn` is about order.  What makes the mutual
+retention and `syncAfter` is about order.  What makes the mutual
 reference safe is the rule from unit 6 that a sync-in applies every
 type in one transaction: a reader sees both sides of the reference or
 neither, never one.
