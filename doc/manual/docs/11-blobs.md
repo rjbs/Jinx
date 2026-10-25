@@ -22,6 +22,10 @@ the total length once known, the byte `ranges` present on disk, a
 `isPinned` flag, `lastAccess`, and the content type.  The bytes live
 in one file per blob under a directory the app chooses, and ranges
 are written at their offsets, so a partial blob is a file with holes.
+The file is named for the blob id, plus the extension the content
+type implies when there is one, so a Track downloaded as `audio/mpeg`
+is `<blobId>.mp3`.  That is not cosmetic: AVFoundation will not open a
+file without an extension.
 A blob is absent when it has no record, partial while its ranges do
 not cover its length, and complete when one range covers everything.
 
@@ -63,7 +67,10 @@ The reads and writes are these.
   as the player seeks, and the delegate itself stays in the app.
 - **`download(_:contentType:pin:)`** fetches the whole blob, resuming
   from whatever ranges are present, and returns its file.  With
-  `pin: true` the blob is marked pinned first.
+  `pin: true` the blob is marked pinned first.  A content type is
+  recorded and names the file; given for a blob already held under
+  another type or none, it renames the file, since the bytes cannot
+  have changed.
 - **`pin(_:)`** and **`unpin(_:)`** mark blobs; `pin` also downloads
   any that are incomplete.
 - **`evict(_:)`** removes a blob's file and record, pinned or not.
@@ -81,6 +88,17 @@ account id, the blob id, a name and a content type, and sends a
 unit 3 parses the `Content-Range` of the 206 that comes back, and the
 record adds the range it received.  A whole-blob response with no
 range sets the total length from the byte count.
+
+The content type in that template is the one the app gave, or
+`application/octet-stream`, and the RFC has the server send it back
+as the response's `Content-Type`.  The response header therefore says
+nothing about the blob, and the store does not record it.  A type
+comes only from the app, which usually has it in the object that
+named the blob.
+
+Every lookup squares the record with the disk.  A record whose file is
+missing, as when iOS purges a cache directory, loses its ranges and is
+fetched again rather than read as holes.
 
 ## Superseded blobs
 
@@ -112,7 +130,9 @@ as a push notification that arrived while a download was in flight.
   in `Sources/JinxStore/Records.swift`.
 - `swift test --filter JinxTests.BlobTests`.
   `rangedReadsFetchOnlyTheGapsAndResumeIntoAWholeDownload` is the
-  figure above; `cacheEvictsLeastRecentlyUsedButNeverPinned` is the
+  figure above; `typedDownloadNamesTheFileWithTheTypesExtension` and
+  `aTypeGivenLaterRenamesTheFileWithoutFetchingAgain` are the file
+  names; `cacheEvictsLeastRecentlyUsedButNeverPinned` is the
   limit; and `supersededBlobIsReportedOnPullAndGoneOnDownloadTriggersRefetch`
   is both halves of the last section.
 
