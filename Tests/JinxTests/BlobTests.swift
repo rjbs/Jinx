@@ -33,7 +33,7 @@ private func makeBlobs(_ h: Harness, cacheLimit: Int64 = 1 << 30) async throws -
   let status = try #require(try await blobs.status(blobId))
   #expect(status.isComplete)
   #expect(status.totalLength == 100)
-  #expect(status.contentType == "audio/mpeg")
+  #expect(status.contentType == "application/octet-stream")
   #expect(!status.isPinned)
   #expect(try await blobs.url(for: blobId) == url)
 

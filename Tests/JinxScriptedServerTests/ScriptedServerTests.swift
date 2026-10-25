@@ -230,10 +230,11 @@ private func call(_ server: ScriptedServer, _ name: String, _ args: JSONValue) a
 @Test func blobsUploadAndDownloadWithRanges() async throws {
   let server = ScriptedServer()
   let session = try await server.fetchSession()
-  let upload = try await server.upload(Data([1, 2, 3, 4, 5]), contentType: "application/octet-stream", to: session.uploadUrl.expand(["accountId": "acct"])!)
+  let upload = try await server.upload(Data([1, 2, 3, 4, 5]), contentType: "text/plain", to: session.uploadUrl.expand(["accountId": "acct"])!)
   let url = try #require(session.downloadUrl.expand(["accountId": "acct", "blobId": upload.blobId, "name": "x", "type": "application/octet-stream"]))
   let whole = try await server.download(from: url, range: nil)
   #expect(whole.data == Data([1, 2, 3, 4, 5]))
+  #expect(whole.contentType == "application/octet-stream", "the type the request named")
   let part = try await server.download(from: url, range: 1..<3)
   #expect(part.data == Data([2, 3]))
   #expect(part.range == 1..<3)

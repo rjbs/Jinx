@@ -327,11 +327,16 @@ public final class ScriptedServer: JMAPTransport, Sendable {
       return s.blobs[parts[3]]
     }
     guard let blob else { throw .httpStatus(404, body: Data()) }
+    // RFC 8620 section 6.2: the response's Content-Type is the type the
+    // request named, not the one the blob was uploaded with, as real
+    // servers do. -- claude, 2026-10-25
+    let type = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+      .queryItems?.first { $0.name == "type" }?.value ?? blob.type
     if let range {
       let clamped = range.clamped(to: 0..<blob.data.count)
-      return BlobDownload(data: blob.data.subdata(in: clamped), contentType: blob.type, range: clamped, totalLength: blob.data.count)
+      return BlobDownload(data: blob.data.subdata(in: clamped), contentType: type, range: clamped, totalLength: blob.data.count)
     }
-    return BlobDownload(data: blob.data, contentType: blob.type, range: nil, totalLength: blob.data.count)
+    return BlobDownload(data: blob.data, contentType: type, range: nil, totalLength: blob.data.count)
   }
 
   public func events(from url: URL) -> AsyncThrowingStream<ServerSentEvent, any Error> {
