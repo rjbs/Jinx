@@ -1,4 +1,5 @@
 import Foundation
+import UniformTypeIdentifiers
 import JinxJSON
 import JinxStore
 import JinxWire
@@ -19,7 +20,9 @@ public enum BlobError: Error, Sendable, Equatable {
 ///
 /// The index lives in the sync store; the bytes live under `directory`,
 /// one file per blob, written at byte offsets so a partial file is just
-/// a file with holes.
+/// a file with holes.  A blob whose content type is known has a file
+/// named with that type's extension, because AVFoundation and others
+/// will not open a file without one.
 public actor BlobStore<Store: SyncStore> {
   public struct Configuration: Sendable {
     public var directory: URL
@@ -71,15 +74,15 @@ public actor BlobStore<Store: SyncStore> {
 
   /// The file holding a complete blob, or `nil` if it is not all here.
   public func url(for blobId: String) async throws -> URL? {
-    guard let record = try await status(blobId), record.isComplete else { return nil }
+    guard let record = try await located(blobId), record.isComplete else { return nil }
     try await touch(record)
-    return path(blobId)
+    return path(record)
   }
 
   /// Bytes of a range, downloading whatever part of it is missing.
   public func read(_ blobId: String, range: Range<Int>) async throws -> Data {
     try prepare()
-    var record = try await status(blobId) ?? BlobRecord(accountId: accountId, blobId: blobId)
+    var record = try await located(blobId) ?? BlobRecord(accountId: accountId, blobId: blobId)
     if let total = record.totalLength, range.upperBound > total {
       throw BlobError.notPresent("\(blobId): range \(range) beyond length \(total)")
     }
@@ -88,7 +91,7 @@ public actor BlobStore<Store: SyncStore> {
       if record.isComplete { break }
     }
     try await touch(record)
-    let handle = try FileHandle(forReadingFrom: path(blobId))
+    let handle = try FileHandle(forReadingFrom: path(record))
     defer { try? handle.close() }
     try handle.seek(toOffset: UInt64(range.lowerBound))
     let data = try handle.read(upToCount: range.count) ?? Data()
@@ -98,12 +101,17 @@ public actor BlobStore<Store: SyncStore> {
   // MARK: - Downloads
 
   /// Fetches the whole blob, resuming any partial file, and returns its
-  /// file.  `pin` keeps it out of cache eviction.
+  /// file.  `pin` keeps it out of cache eviction.  A `contentType` is
+  /// recorded and names the file's extension; a blob already held
+  /// under another type, or none, has its file renamed, not fetched
+  /// again, since the bytes cannot have changed.
   @discardableResult
   public func download(_ blobId: String, contentType: String? = nil, pin: Bool = false) async throws -> URL {
     try prepare()
-    var record = try await status(blobId) ?? BlobRecord(accountId: accountId, blobId: blobId)
-    if let contentType { record.contentType = contentType }
+    var record = try await located(blobId) ?? BlobRecord(accountId: accountId, blobId: blobId)
+    if let contentType, contentType != record.contentType {
+      record = try await retype(record, as: contentType)
+    }
     if pin { record.isPinned = true }
     if !record.isComplete {
       if let total = record.totalLength {
@@ -116,7 +124,7 @@ public actor BlobStore<Store: SyncStore> {
     }
     try await touch(record)
     try await enforceCacheLimit()
-    return path(blobId)
+    return path(record)
   }
 
   /// Marks blobs pinned and downloads any that are not complete.
@@ -141,8 +149,13 @@ public actor BlobStore<Store: SyncStore> {
   /// Removes a blob's file and index entry, pinned or not.
   public func evict(_ blobId: String) async throws {
     let accountId = accountId
-    try await store.write { tx in try tx.deleteBlob(accountId: accountId, blobId: blobId) }
-    try? FileManager.default.removeItem(at: path(blobId))
+    let record = try await store.write { tx in
+      let record = try tx.blob(accountId: accountId, blobId: blobId)
+      try tx.deleteBlob(accountId: accountId, blobId: blobId)
+      return record
+    }
+    if let record { try? FileManager.default.removeItem(at: path(record)) }
+    try? FileManager.default.removeItem(at: barePath(blobId))
   }
 
   /// Deletes least recently used cached blobs until the cache fits.
@@ -174,6 +187,8 @@ public actor BlobStore<Store: SyncStore> {
       "accountId": accountId,
       "blobId": record.blobId,
       "name": "blob",
+      // The server echoes this as the response's Content-Type, so that
+      // header says nothing about the blob and is not recorded.
       "type": record.contentType ?? "application/octet-stream",
     ]) else { throw JMAPError.badSession("downloadUrl") }
 
@@ -190,11 +205,10 @@ public actor BlobStore<Store: SyncStore> {
 
     var record = record
     let offset = download.range?.lowerBound ?? 0
-    try write(download.data, at: offset, to: path(record.blobId))
+    try write(download.data, at: offset, to: path(record))
     record.add(offset..<(offset + download.data.count))
     if let total = download.totalLength { record.totalLength = total }
     if download.range == nil { record.totalLength = download.data.count }
-    if let type = download.contentType, record.contentType == nil { record.contentType = type }
     record.lastAccess = Date()
     let saved = record
     try await store.write { tx in try tx.setBlob(saved) }
@@ -218,7 +232,59 @@ public actor BlobStore<Store: SyncStore> {
     try await store.write { tx in try tx.setBlob(saved) }
   }
 
-  private func path(_ blobId: String) -> URL {
+  /// The record for `blobId`, squared with what is on disk.  A file
+  /// found under the bare blob id, as every file was named before
+  /// files had extensions, is moved to its typed name.  A record whose
+  /// file is gone, because the system purged the cache directory or a
+  /// rename was interrupted, keeps its type and pin but loses its
+  /// ranges, so the bytes are fetched again rather than read as holes.
+  private func located(_ blobId: String) async throws -> BlobRecord? {
+    guard var record = try await status(blobId) else { return nil }
+    let file = path(record)
+    let bare = barePath(blobId)
+    let fm = FileManager.default
+    if record.ranges.isEmpty || fm.fileExists(atPath: file.path) { return record }
+    if file != bare, fm.fileExists(atPath: bare.path) {
+      try fm.moveItem(at: bare, to: file)
+      return record
+    }
+    record.ranges = []
+    let saved = record
+    try await store.write { tx in try tx.setBlob(saved) }
+    return record
+  }
+
+  /// Records a new content type and moves the file to the name it implies.
+  private func retype(_ record: BlobRecord, as contentType: String) async throws -> BlobRecord {
+    let old = path(record)
+    var record = record
+    record.contentType = contentType
+    let new = path(record)
+    let saved = record
+    // The move is inside the transaction, so a move that fails leaves
+    // the record naming the file where it still is. -- claude, 2026-10-25
+    try await store.write { tx in
+      try tx.setBlob(saved)
+      let fm = FileManager.default
+      if old != new, fm.fileExists(atPath: old.path) {
+        try? fm.removeItem(at: new)
+        try fm.moveItem(at: old, to: new)
+      }
+    }
+    return record
+  }
+
+  /// The blob's file: its id, with the extension its content type
+  /// implies, if any.
+  private func path(_ record: BlobRecord) -> URL {
+    let bare = barePath(record.blobId)
+    guard let type = record.contentType,
+          let ext = UTType(mimeType: type)?.preferredFilenameExtension
+    else { return bare }
+    return bare.appendingPathExtension(ext)
+  }
+
+  private func barePath(_ blobId: String) -> URL {
     configuration.directory.appendingPathComponent(accountId, isDirectory: true).appendingPathComponent(blobId)
   }
 

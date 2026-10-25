@@ -33,7 +33,8 @@ private func makeBlobs(_ h: Harness, cacheLimit: Int64 = 1 << 30) async throws -
   let status = try #require(try await blobs.status(blobId))
   #expect(status.isComplete)
   #expect(status.totalLength == 100)
-  #expect(status.contentType == "application/octet-stream")
+  #expect(status.contentType == nil, "the server echoes the type asked for, so it is not recorded")
+  #expect(url.pathExtension == "")
   #expect(!status.isPinned)
   #expect(try await blobs.url(for: blobId) == url)
 
@@ -65,6 +66,73 @@ private func makeBlobs(_ h: Harness, cacheLimit: Int64 = 1 << 30) async throws -
   #expect(try await blobs.status(blobId)?.isComplete == true)
 
   await #expect(throws: BlobError.self) { try await blobs.read(blobId, range: 90..<120) }
+}
+
+private func assertDownloadNamesFile(contentType: String?, pathExtension: String) async throws {
+  let h = try Harness(types: [trackWithBlob])
+  let bytes = Data([1, 2, 3])
+  let blobId = h.server.addBlob(bytes)
+  let (blobs, directory) = try await makeBlobs(h)
+  defer { try? FileManager.default.removeItem(at: directory) }
+
+  let url = try await blobs.download(blobId, contentType: contentType)
+  #expect(url.pathExtension == pathExtension, "\(contentType ?? "no type")")
+  #expect(try Data(contentsOf: url) == bytes)
+  #expect(try await blobs.status(blobId)?.contentType == contentType)
+  #expect(try await blobs.url(for: blobId) == url)
+}
+
+@Test func typedDownloadNamesTheFileWithTheTypesExtension() async throws {
+  try await assertDownloadNamesFile(contentType: "audio/mpeg", pathExtension: "mp3")
+  try await assertDownloadNamesFile(contentType: "audio/mp4", pathExtension: "mp4")
+  try await assertDownloadNamesFile(contentType: "audio/x-m4a", pathExtension: "m4a")
+  try await assertDownloadNamesFile(contentType: "application/octet-stream", pathExtension: "")
+  try await assertDownloadNamesFile(contentType: "bogus/unknown", pathExtension: "")
+  try await assertDownloadNamesFile(contentType: nil, pathExtension: "")
+}
+
+@Test func aTypeGivenLaterRenamesTheFileWithoutFetchingAgain() async throws {
+  let h = try Harness(types: [trackWithBlob])
+  let bytes = Data((0..<10).map { UInt8($0) })
+  let blobId = h.server.addBlob(bytes)
+  let (blobs, directory) = try await makeBlobs(h)
+  defer { try? FileManager.default.removeItem(at: directory) }
+
+  let bare = try await blobs.download(blobId)
+  let typed = try await blobs.download(blobId, contentType: "audio/mpeg")
+  #expect(typed.pathExtension == "mp3")
+  #expect(!FileManager.default.fileExists(atPath: bare.path))
+  #expect(try Data(contentsOf: typed) == bytes)
+  #expect(h.server.downloads.count == 1)
+
+  // A partial blob is renamed too, and resumes into its new name.
+  let other = h.server.addBlob(bytes)
+  _ = try await blobs.read(other, range: 0..<4)
+  let resumed = try await blobs.download(other, contentType: "audio/mp4")
+  #expect(try Data(contentsOf: resumed) == bytes)
+  #expect(h.server.downloads.filter { $0.blobId == other }.map { $0.range } == [0..<4, 4..<10])
+}
+
+@Test func filesUnderTheBareIdMoveAndMissingFilesAreFetchedAgain() async throws {
+  let h = try Harness(types: [trackWithBlob])
+  let bytes = Data([7, 8, 9])
+  let blobId = h.server.addBlob(bytes)
+  let (blobs, directory) = try await makeBlobs(h)
+  defer { try? FileManager.default.removeItem(at: directory) }
+
+  // A typed blob cached before files had extensions sits under its id.
+  let typed = try await blobs.download(blobId, contentType: "audio/mpeg")
+  let bare = typed.deletingPathExtension()
+  try FileManager.default.moveItem(at: typed, to: bare)
+  #expect(try await blobs.url(for: blobId) == typed)
+  #expect(try Data(contentsOf: typed) == bytes)
+  #expect(!FileManager.default.fileExists(atPath: bare.path))
+
+  // A file the system purged is fetched again, not read as holes.
+  try FileManager.default.removeItem(at: typed)
+  #expect(try await blobs.url(for: blobId) == nil)
+  #expect(try await blobs.read(blobId, range: 0..<3) == bytes)
+  #expect(h.server.downloads.count == 2)
 }
 
 @Test func cacheEvictsLeastRecentlyUsedButNeverPinned() async throws {
