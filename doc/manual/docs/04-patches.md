@@ -175,8 +175,7 @@ Step one diffs server version to local, which recovers the pending patch.
 Step two applies that patch to the fetched object, and the result is
 the new local value.  The fetched object becomes the new server version.
 
-The consequence is the whole of Jinx's default conflict rule, and it
-is worth saying plainly: **a property with a pending local change
+The consequence is the whole of Jinx's default conflict rule: **a property with a pending local change
 keeps its local value until it is synced out, and every other property
 takes the server's.**  Because the patch is at path granularity, two
 clients editing different members of one map do not conflict at all,

@@ -89,7 +89,7 @@ until the next wake-up, and never loses anything.
 
 ```swift
 @MainActor
-final class TaskList {
+final class TaskFeed {
   var tasks: [SyncedObject] = []
 
   func observe(_ engine: SyncEngine<GRDBSyncStore>) {
@@ -103,6 +103,7 @@ final class TaskList {
 }
 ```
 
+Here `Task { }` is Swift's, and `"Task"` is NerfJournal's JMAP type.
 `changes()` returns a new `AsyncStream<ChangeSet>` on each call, and
 any number of consumers may hold one.  The elements are `Sendable`
 values, so a `for await` on the main actor is correct without any

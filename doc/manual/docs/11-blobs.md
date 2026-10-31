@@ -24,8 +24,8 @@ in one file per blob under a directory the app chooses, and ranges
 are written at their offsets, so a partial blob is a file with holes.
 The file is named for the blob id, plus the extension the content
 type implies when there is one, so a Track downloaded as `audio/mpeg`
-is `<blobId>.mp3`.  That is not cosmetic: AVFoundation will not open a
-file without an extension.
+is `<blobId>.mp3`, because AVFoundation will not open a file without
+an extension.
 A blob is absent when it has no record, partial while its ranges do
 not cover its length, and complete when one range covers everything.
 

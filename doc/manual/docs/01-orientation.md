@@ -152,7 +152,7 @@ use them or write its own.
 | `JinxTypes` | Reference type descriptors for Mail and Tasks, optional | tiny |
 | `JinxScriptedServer` | A small, correct JMAP server that lives in the test process | medium |
 
-The division is not decoration.  An app that only wants to send a
+The layers are well defined and separable.  An app that only wants to send a
 hand-built request can use `JinxWire` alone, and a test of the patch
 algebra links nothing but `JinxPatch` and `JinxJSON`.  The test server
 sits beside the stack rather than on top of it, so that it can be
@@ -199,16 +199,29 @@ There is no request in it.  There is no state string, no `/changes`
 call, no `/set`, no response handling.  The app names the account and
 the types, opens a database, and says what it wants to happen.
 
+Two names collide here.  `Task { }` is Swift's unstructured task, a
+unit of concurrent work, and the two in the example run the sync loop
+and read the change stream for as long as the process lives.
+`"Task"`, a string, is the JMAP Task type.  The prose below says
+"JMAP Task" wherever the two could be confused.
+
+The example is the body of a long-running app.  `create` returns as
+soon as the object is in the local store, with its local key, and the
+server hears about it later.  A program that exited at the last line
+would leave the create pending in the database, to be synced out the
+next time any engine runs on that file.  A command-line tool that
+wants it sent before exiting calls `try await engine.sync()` itself.
+
 What happens is this.  The run loop fetches the session resource and
-runs a first pass.  There is nothing to sync out.  Task has no stored
-state, so the sync-in is an initial sync: page through `Task/query` and
-fetch the pages with `Task/get`, committing each chunk as it lands and
+runs a first pass.  There is nothing to sync out.  The JMAP Task type
+has no stored state, so the sync-in is an initial sync: page through
+`Task/query` and fetch the pages with `Task/get`, committing each chunk as it lands and
 reporting it on the change stream, until the state string from the
 last `/get` can be stored and `Task/changes` can take over.  The create
 writes a row to the local store, appends a pending entry to a log,
 emits a change set with a `local` source, and asks the run loop for a
-pass.  After a short debounce, the sync-out reads the entry, builds
-`Task/set` with one create, sends it, and on success writes the server's
+pass.  After a debounce, a hundred milliseconds by default, the
+sync-out reads the entry, builds `Task/set` with one create, sends it, and on success writes the server's
 id into the row and emits a change set that says so.  If the device is
 offline, the entry waits.  If the user edits the task three times
 before the sync-out, one patch goes.  If the server has changed the task in
