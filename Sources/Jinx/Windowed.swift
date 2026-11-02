@@ -375,6 +375,7 @@ extension SyncEngine {
       let fetchedNow = fetched
       let changesNow = changes
       let resultsNow = newResults
+      let queried = Dictionary(subscriptions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
       let activeNames = active.map(\.name)
       try await commit({ tx, changeSet in
         for type in activeNames {
@@ -394,6 +395,11 @@ extension SyncEngine {
           }
         }
         for (id, result) in resultsNow {
+          // The app may have redefined the subscription while this pass
+          // was querying its old definition; the stale answer must not
+          // be committed over the new one, which the next pass will
+          // run.  -- claude, 2026-11-02
+          guard try tx.subscription(accountId: accountId, id: id) == queried[id] else { continue }
           let old = try tx.subscriptionResult(accountId: accountId, id: id)
           if old != result {
             try tx.setSubscriptionResult(result, accountId: accountId, id: id)
@@ -535,8 +541,12 @@ extension SyncEngine {
       newResults[sub.id] = SubscriptionResult(ids: query.ids, total: query.total, queryState: query.queryState, canCalculateChanges: query.canCalculateChanges, extra: query.extra)
     }
     let resultsNow = newResults
+    let queried = Dictionary(due.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     try await commit({ tx, changeSet in
-      for (id, result) in resultsNow where try tx.subscriptionResult(accountId: accountId, id: id) != result {
+      // As in the windowed pass: a subscription redefined meanwhile
+      // keeps the result it has until its new definition runs.
+      for (id, result) in resultsNow where try tx.subscription(accountId: accountId, id: id) == queried[id]
+        && (try tx.subscriptionResult(accountId: accountId, id: id)) != result {
         try tx.setSubscriptionResult(result, accountId: accountId, id: id)
         changeSet.subscriptions.append(id)
       }
