@@ -65,6 +65,12 @@ subscription's identity because they change what the server returns.
 A subscription with no filter, no limit and position zero covers the
 whole type, and while it exists the type behaves as a full mirror.
 
+A query can depend on more than its type: a saved search kept in
+another type, say, or the clock.  When the app knows such an answer
+has gone stale, `refreshSubscriptions(of:)` runs the type's
+subscriptions again on the next pass as if the type had moved, and
+the results that stand are kept until the new ones arrive.
+
 The result of a subscription, a `SubscriptionResult`, is what the
 server last said its window holds: the ids in the query's order, the
 total if the server reported one, the query state, whether the server

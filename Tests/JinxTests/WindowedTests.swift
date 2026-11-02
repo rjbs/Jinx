@@ -57,6 +57,24 @@ private func byN(_ ascending: Bool = true) -> [JSONValue] {
   #expect(methodNames(h.server) == ["Item/changes"], "an unchanged type costs one call and no re-query")
 }
 
+@Test func refreshRunsAFullTypesSubscriptionsAgain() async throws {
+  let h = try Harness(types: [thingType])
+  for n in 1...3 { _ = h.server.create("Thing", ["n": .number(Double(n))]) }
+  try await h.engine.subscribe(QuerySubscription(id: "all", accountId: "acct", type: "Thing", sort: byN()))
+  try await h.engine.sync()
+  #expect(try await h.engine.result(of: "all")?.ids.count == 3)
+
+  h.server.clearRequests()
+  try await h.engine.sync()
+  #expect(!methodNames(h.server).contains("Thing/query"), "an unmoved type is not re-queried")
+
+  h.server.clearRequests()
+  try await h.engine.refreshSubscriptions(of: "Thing")
+  try await h.engine.sync()
+  #expect(methodNames(h.server).contains("Thing/query"), "a refresh re-queries without the type moving")
+  await #expect(throws: SyncError.self) { try await h.engine.refreshSubscriptions(of: "Nope") }
+}
+
 @Test func pinsAndPendingChangesAreNeverEvicted() async throws {
   let h = try Harness(types: [itemType])
   let ids = (1...4).map { h.server.create("Item", ["n": .number(Double($0))]) }

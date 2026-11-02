@@ -39,6 +39,18 @@ extension SyncEngine {
     requestSync()
   }
 
+  /// Runs the type's subscriptions again on the next pass, as if the
+  /// type had moved.  A query's answer can depend on more than the
+  /// type's own objects: a saved search kept in another type, say, or
+  /// the time of day.  When the app knows such an answer has gone
+  /// stale, it asks for the queries to run again, and the results that
+  /// stand are kept until the new ones arrive.
+  public func refreshSubscriptions(of type: String) throws(SyncError) {
+    guard descriptors[type] != nil else { throw SyncError.unknownType(type) }
+    subscriptionsDirty.insert(type)
+    requestSync()
+  }
+
   public func subscriptions() async throws -> [QuerySubscription] {
     let accountId = accountId
     return try await store.read { tx in try tx.subscriptions(accountId: accountId) }
