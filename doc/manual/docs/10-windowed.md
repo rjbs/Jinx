@@ -78,6 +78,17 @@ can calculate changes for it, and `extra`, every non-standard property
 of the last response.  Fastmail's category sort returns section counts
 there, and an app that draws section headers needs them.
 
+A server caps every `/query` at a limit of its own, which it need not
+advertise: Juke's answers at most 5,000 ids however many were asked
+for.  An answer shorter than its total, and shorter than the
+subscription asked for, is only a first page, so the engine fetches
+the rest from the next position with the same filter and sort, and
+the result is the whole list.  The window holds what the subscription
+asked for, not what one answer could carry.  A page answered under a
+different query state than the first cannot join it, so the paging
+starts over; a server that keeps moving gets a few tries before the
+pass is given up and retried.
+
 The read API has a subtlety.  `result(of:)` returns the result, and
 `objects(in:)` returns the window's objects in order, but a window
 that is cut by numbers in `extra` must not be read in two calls,
@@ -132,8 +143,10 @@ the subscription is unlimited or starts at position zero, passing the
 window's last id as `upToId` so the server need not report changes
 below the window.  Otherwise, and that is the common case against
 most servers, it re-runs `/query` and the engine diffs the id lists
-itself.  A `/queryChanges` that comes back `cannotCalculateChanges`
-or `tooManyChanges` is retried as a `/query` in the same round.  In
+itself.  An answer the server cut short is completed by paging, as
+described under Subscriptions.  A `/queryChanges` that comes back
+`cannotCalculateChanges` or `tooManyChanges` is retried as a `/query`
+in the same round.  In
 the same request, every id the `/changes` listed as updated and that
 is held is refetched with the type's summary properties.  Created
 ids are not fetched, because a subscription that should show them
