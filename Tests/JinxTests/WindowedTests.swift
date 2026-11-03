@@ -283,3 +283,66 @@ private func byN(_ ascending: Bool = true) -> [JSONValue] {
   #expect(!gapped.isComplete)
   #expect(gapped.objects.count == 1)
 }
+
+// MARK: - Paging past the server's query cap
+
+private struct Page: Hashable, CustomStringConvertible {
+  var position: Int
+  var limit: Int?
+  init(_ position: Int, _ limit: Int?) {
+    self.position = position
+    self.limit = limit
+  }
+  var description: String { "\(position)/\(limit.map(String.init) ?? "-")" }
+}
+
+/// Subscribes to `count` objects of `type` in n order, against a server
+/// that cuts every `/query` to `cap` ids, and checks that the window
+/// holds the ids the subscription asked for, fetched in exactly
+/// `pages`.  With `moveAfterPage`, the page after that many is answered
+/// under a changed query state, which must start the paging over.
+private func expectPagedWindow(
+  _ type: TypeDescriptor = itemType,
+  count: Int,
+  cap: Int,
+  position: Int = 0,
+  limit: Int? = nil,
+  pages: [Page],
+  moveAfterPage: Int? = nil,
+  sourceLocation: SourceLocation = #_sourceLocation
+) async throws {
+  var limits = ScriptedServer.Limits()
+  limits.maxQueryLimit = cap
+  let h = try Harness(types: [type], limits: limits)
+  let ids = (1...count).map { h.server.create(type.name, ["n": .number(Double($0))]) }
+  if let moveAfterPage {
+    for _ in 0..<moveAfterPage { h.server.enqueue(.rewrite(method: "\(type.name)/query") { $0 }) }
+    h.server.enqueue(.rewrite(method: "\(type.name)/query") { var r = $0; r["queryState"] = "elsewhere"; return r })
+  }
+  try await h.engine.subscribe(QuerySubscription(id: "s", accountId: "acct", type: type.name, sort: byN(), position: position, limit: limit))
+  try await h.engine.sync()
+
+  let expected = Array(ids.dropFirst(position).prefix(limit ?? count))
+  let result = try #require(try await h.engine.result(of: "s"), sourceLocation: sourceLocation)
+  #expect(result.ids == expected, sourceLocation: sourceLocation)
+  #expect(result.total == count, sourceLocation: sourceLocation)
+  #expect(result.queryState == h.server.state(of: type.name), sourceLocation: sourceLocation)
+  #expect(try await h.engine.objects(in: "s").compactMap(\.id) == expected, "every id in the window is held", sourceLocation: sourceLocation)
+  let asked = h.server.calls(named: "\(type.name)/query").map { Page($0.arguments["position"]?.intValue ?? 0, $0.arguments["limit"]?.intValue) }
+  #expect(asked == pages, sourceLocation: sourceLocation)
+}
+
+@Test func aSubscriptionPagesPastTheServersQueryCap() async throws {
+  try await expectPagedWindow(count: 8, cap: 3, pages: [Page(0, nil), Page(3, nil), Page(6, nil)])
+  try await expectPagedWindow(count: 8, cap: 3, limit: 5, pages: [Page(0, 5), Page(3, 2)])
+  try await expectPagedWindow(count: 8, cap: 3, limit: 2, pages: [Page(0, 2)])
+  try await expectPagedWindow(count: 8, cap: 3, position: 2, pages: [Page(2, nil), Page(5, nil)])
+  try await expectPagedWindow(count: 3, cap: 3, pages: [Page(0, nil)])
+  try await expectPagedWindow(thingType, count: 7, cap: 3, pages: [Page(0, nil), Page(3, nil), Page(6, nil)])
+}
+
+@Test func pagingStartsOverWhenTheQueryStateMoves() async throws {
+  try await expectPagedWindow(
+    count: 8, cap: 3, pages: [Page(0, nil), Page(3, nil), Page(0, nil), Page(3, nil), Page(6, nil)], moveAfterPage: 1
+  )
+}

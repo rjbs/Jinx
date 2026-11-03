@@ -302,8 +302,7 @@ extension SyncEngine {
           result.extra = delta.extra
           newResults[sub.id] = result
         } else {
-          let query = try QueryResponse(json: response.arguments)
-          newResults[sub.id] = SubscriptionResult(ids: query.ids, total: query.total, queryState: query.queryState, canCalculateChanges: query.canCalculateChanges, extra: query.extra)
+          newResults[sub.id] = try await completeQuery(sub, from: QueryResponse(json: response.arguments), session: session)
         }
       }
       if !subscriptionsNeedingFullQuery.isEmpty {
@@ -317,8 +316,7 @@ extension SyncEngine {
           guard let invocation = response.response(to: calls[sub.id]!.callId), !invocation.isError else {
             throw SyncError.retryable("\(sub.type)/query (\(sub.id)) failed")
           }
-          let query = try QueryResponse(json: invocation.arguments)
-          newResults[sub.id] = SubscriptionResult(ids: query.ids, total: query.total, queryState: query.queryState, canCalculateChanges: query.canCalculateChanges, extra: query.extra)
+          newResults[sub.id] = try await completeQuery(sub, from: QueryResponse(json: invocation.arguments), session: session)
         }
       }
 
@@ -436,6 +434,47 @@ extension SyncEngine {
     return fetched
   }
 
+  /// The whole of a `/query` answer the server cut short.  A server
+  /// caps every query at a limit of its own, which it need not
+  /// advertise, so an answer shorter than its total, and shorter than
+  /// the subscription asked for, is a first page.  The pages after it
+  /// are fetched from the next position with the same filter and sort,
+  /// until the ids run out or reach the subscription's limit, and the
+  /// whole list is one result with the first page's total and extras.
+  /// A page answered under a different query state than the first
+  /// cannot join it, so the answer starts over; a server that keeps
+  /// moving gets a few tries, then the pass is retried later.
+  func completeQuery(_ sub: QuerySubscription, from first: QueryResponse, session: Session) async throws -> SubscriptionResult {
+    var first = first
+    for _ in 0..<3 {
+      var ids = first.ids
+      var page = first
+      while let total = first.total, !page.ids.isEmpty,
+            first.position + ids.count < total, ids.count < sub.limit ?? .max
+      {
+        page = try await queryPage(sub, position: first.position + ids.count, limit: sub.limit.map { $0 - ids.count }, session: session)
+        guard page.queryState == first.queryState else { break }
+        ids += page.ids
+      }
+      if page.queryState == first.queryState {
+        return SubscriptionResult(ids: ids, total: first.total, queryState: first.queryState, canCalculateChanges: first.canCalculateChanges, extra: first.extra)
+      }
+      first = try await queryPage(sub, position: sub.position, limit: sub.limit, session: session)
+    }
+    throw SyncError.retryable("\(sub.type)/query (\(sub.id)): the query state kept moving between pages")
+  }
+
+  private func queryPage(_ sub: QuerySubscription, position: Int, limit: Int?, session: Session) async throws -> QueryResponse {
+    var builder = RequestBuilder(using: capabilities)
+    let call = builder.call("\(sub.type)/query", sub.queryArguments(accountId: accountId, position: position, limit: limit))
+    let response = try await send(builder.request, session: session)
+    guard let invocation = response.response(to: call.callId), !invocation.isError else {
+      let error = response.response(to: call.callId)?.methodError?.type ?? "no response"
+      throw SyncError.retryable("\(sub.type)/query (\(sub.id)) at \(position): \(error)")
+    }
+    return try QueryResponse(json: invocation.arguments)
+  }
+
   /// Removes objects of windowed types that nothing retains.  Retained:
   /// in a subscription window, pinned, carrying a pending change, or
   /// referenced by a retained object of another type (one level).
@@ -537,8 +576,7 @@ extension SyncEngine {
       guard let invocation = response.response(to: calls[sub.id]!.callId), !invocation.isError else {
         throw SyncError.retryable("\(sub.type)/query (\(sub.id)) failed")
       }
-      let query = try QueryResponse(json: invocation.arguments)
-      newResults[sub.id] = SubscriptionResult(ids: query.ids, total: query.total, queryState: query.queryState, canCalculateChanges: query.canCalculateChanges, extra: query.extra)
+      newResults[sub.id] = try await completeQuery(sub, from: QueryResponse(json: invocation.arguments), session: session)
     }
     let resultsNow = newResults
     let queried = Dictionary(due.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -557,8 +595,13 @@ extension SyncEngine {
 
 extension QuerySubscription {
   /// The `/query` arguments for this subscription: the app's extra
-  /// arguments first, then the engine's, which win.
+  /// arguments first, then the engine's, which win.  A later page of
+  /// the same query gives its own position and limit.
   func queryArguments(accountId: String) -> JSONValue {
+    queryArguments(accountId: accountId, position: position, limit: limit)
+  }
+
+  func queryArguments(accountId: String, position: Int, limit: Int?) -> JSONValue {
     var args = JSONValue.object(arguments)
     let engine = JSONValue.queryArguments(
       accountId: accountId, filter: filter, sort: sort, position: position, limit: limit, calculateTotal: true
