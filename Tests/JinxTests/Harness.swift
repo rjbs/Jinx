@@ -23,14 +23,13 @@ struct Harness {
   let engine: SyncEngine<GRDBSyncStore>
 
   init(types: [TypeDescriptor] = [thingType], limits: ScriptedServer.Limits = .init(), fetchChunk: Int? = nil, processId: String = "test") throws {
-    server = ScriptedServer(capabilities: types.map(\.capability))
+    server = ScriptedServer(capabilities: types.map(\.capability), limits: limits)
     store = try GRDBSyncStore.inMemory()
     engine = try SyncEngine(
       configuration: SyncConfiguration(accountId: "acct", types: types, processId: processId, fetchChunk: fetchChunk),
       transport: server,
       store: store
     )
-    _ = limits
   }
 
   /// A second engine on the same store, as another process would have.

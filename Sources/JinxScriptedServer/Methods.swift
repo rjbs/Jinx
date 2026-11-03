@@ -59,7 +59,7 @@ extension ScriptedServer.State {
     case "get": return get(account, type, args, limits: limits)
     case "changes": return changes(account, type, args, limits: limits)
     case "set": return set(account, type, args, createdIds: &createdIds, limits: limits)
-    case "query": return query(account, type, args)
+    case "query": return query(account, type, args, limits: limits)
     case "queryChanges": return queryChanges(account, type, args)
     default: return error(MethodError.unknownMethod)
     }
@@ -286,7 +286,7 @@ extension ScriptedServer.State {
     "\(account)|\(type)|\(filter?.description ?? "")|\(JSONValue.array(sort).description)|\(state)"
   }
 
-  private mutating func query(_ account: String, _ type: String, _ args: JSONValue) -> (name: String, arguments: JSONValue) {
+  private mutating func query(_ account: String, _ type: String, _ args: JSONValue, limits: ScriptedServer.Limits) -> (name: String, arguments: JSONValue) {
     let data = types[account]?[type] ?? ScriptedServer.TypeData()
     let sort = args["sort"]?.arrayValue ?? []
     let ids = fullQuery(data, filter: args["filter"], sort: sort)
@@ -299,7 +299,7 @@ extension ScriptedServer.State {
       position = max(0, index + (args["anchorOffset"]?.intValue ?? 0))
     }
     if position < 0 { position = max(0, ids.count + position) }
-    let limit = args["limit"]?.intValue
+    let limit = [args["limit"]?.intValue, limits.maxQueryLimit].compactMap { $0 }.min()
     let page = Array(ids.dropFirst(position).prefix(limit ?? ids.count))
     var response: JSONValue = [
       "accountId": .string(account),

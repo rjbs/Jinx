@@ -21,6 +21,9 @@ public final class ScriptedServer: JMAPTransport, Sendable {
     public var maxObjectsInSet = 128
     public var maxCallsInRequest = 32
     public var maxChangesDefault = 1000
+    /// The most ids one `/query` answers with, however many it was
+    /// asked for, as a real server caps its queries; `nil` means no cap.
+    public var maxQueryLimit: Int? = nil
 
     public init() {}
   }
