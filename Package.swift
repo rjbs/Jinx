@@ -38,6 +38,10 @@ let package = Package(
     .target(name: "JinxTypes", dependencies: ["Jinx"]),
     .target(name: "JinxScriptedServer", dependencies: ["JinxJSON", "JinxPatch", "JinxWire"]),
     .target(name: "JinxInspector", dependencies: ["Jinx", "JinxJSON", "JinxPatch", "JinxStore", "JinxWire"]),
+    .executableTarget(
+      name: "JinxInspectorDemo",
+      dependencies: ["Jinx", "JinxInspector", "JinxScriptedServer", "JinxStore", "JinxWire"]
+    ),
 
     .testTarget(name: "JinxJSONTests", dependencies: ["JinxJSON"]),
     .testTarget(name: "JinxPatchTests", dependencies: ["JinxPatch"]),
