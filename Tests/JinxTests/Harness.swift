@@ -21,8 +21,9 @@ struct Harness {
   let server: ScriptedServer
   let store: GRDBSyncStore
   let engine: SyncEngine<GRDBSyncStore>
+  let tap: WireTapToken?
 
-  init(types: [TypeDescriptor] = [thingType], limits: ScriptedServer.Limits = .init(), fetchChunk: Int? = nil, processId: String = "test") throws {
+  init(types: [TypeDescriptor] = [thingType], limits: ScriptedServer.Limits = .init(), fetchChunk: Int? = nil, processId: String = "test", recorder: TransportRecorder? = nil) throws {
     server = ScriptedServer(capabilities: types.map(\.capability), limits: limits)
     store = try GRDBSyncStore.inMemory()
     engine = try SyncEngine(
@@ -30,6 +31,7 @@ struct Harness {
       transport: server,
       store: store
     )
+    tap = recorder.map(engine.addWireTap)
   }
 
   /// A second engine on the same store, as another process would have.

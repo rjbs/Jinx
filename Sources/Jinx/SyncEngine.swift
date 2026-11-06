@@ -85,6 +85,7 @@ public struct SyncedObject: Sendable, Hashable {
 public actor SyncEngine<Store: SyncStore> {
   public nonisolated let configuration: SyncConfiguration
   let transport: any JMAPTransport
+  nonisolated let wireTaps = WireTaps()
   let store: Store
   let descriptors: [String: TypeDescriptor]
   let orderedTypes: [TypeDescriptor]
@@ -111,7 +112,7 @@ public actor SyncEngine<Store: SyncStore> {
 
   public init(configuration: SyncConfiguration, transport: any JMAPTransport, store: Store) throws(SyncError) {
     self.configuration = configuration
-    self.transport = transport
+    self.transport = EngineTransport(inner: transport, taps: wireTaps)
     self.store = store
     self.orderedTypes = try configuration.types.inDependencyOrder()
     self.descriptors = Dictionary(uniqueKeysWithValues: orderedTypes.map { ($0.name, $0) })
@@ -125,7 +126,7 @@ public actor SyncEngine<Store: SyncStore> {
   /// early to surface connection problems.
   @discardableResult
   public func connect() async throws(JMAPError) -> Session {
-    let session = try await transport.fetchSession()
+    let session = try await traced("session") { () async throws(JMAPError) in try await transport.fetchSession() }
     self.session = session
     status.isConnected = true
     return session
@@ -227,8 +228,10 @@ public actor SyncEngine<Store: SyncStore> {
   /// `SyncError.retryable` for a failure worth retrying, and lets other
   /// errors through.
   public func sync() async throws {
+    let state = Trace.signposter.beginInterval("pass", id: Trace.signposter.makeSignpostID())
+    defer { Trace.signposter.endInterval("pass", state) }
     if reconcileBeforeSyncOut {
-      try await syncIn()
+      try await traced("reconciling sync-in") { try await syncIn() }
       reconcileBeforeSyncOut = false
     }
     // A sync-out that fails for a retryable reason still leaves the sync-in
@@ -237,11 +240,11 @@ public actor SyncEngine<Store: SyncStore> {
     // wait. -- claude, 2026-10-17
     var pushFailure: (any Error)?
     do {
-      try await syncOut()
+      try await traced("sync-out") { try await syncOut() }
     } catch SyncError.retryable(let reason) {
       pushFailure = SyncError.retryable(reason)
     }
-    try await syncIn()
+    try await traced("sync-in") { try await syncIn() }
     if let pushFailure { throw pushFailure }
   }
 }

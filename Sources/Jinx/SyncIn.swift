@@ -28,15 +28,17 @@ extension SyncEngine {
         incremental.append(descriptor)
       }
     }
-    let (resyncs, moved) = try await syncInChanges(incremental, session: session)
+    let (resyncs, moved) = try await traced("changes") { try await syncInChanges(incremental, session: session) }
     for descriptor in needFull + resyncs {
-      try await fullFetch(descriptor, session: session)
+      try await traced("full fetch \(descriptor.name)") { try await fullFetch(descriptor, session: session) }
     }
-    try await refreshFullTypeSubscriptions(moved: moved.union((needFull + resyncs).map(\.name)), session: session)
-    let windowedResyncs = try await syncInWindowed(windowed, session: session)
+    try await traced("full-type subscriptions") { try await refreshFullTypeSubscriptions(moved: moved.union((needFull + resyncs).map(\.name)), session: session) }
+    let windowedResyncs = try await traced("windowed") { try await syncInWindowed(windowed, session: session) }
     if !windowedResyncs.isEmpty {
-      for descriptor in windowedResyncs { try await resyncWindowed(descriptor) }
-      _ = try await syncInWindowed(windowedResyncs, session: session)
+      for descriptor in windowedResyncs {
+        try await traced("resync \(descriptor.name)") { try await resyncWindowed(descriptor) }
+      }
+      _ = try await traced("windowed after resync") { try await syncInWindowed(windowedResyncs, session: session) }
     }
     status.lastSyncIn = Date()
   }
@@ -198,7 +200,7 @@ extension SyncEngine {
           descriptor.getArguments(accountId: accountId, ids: []),
           references: ["ids": query.reference("/ids")]
         )
-        let response = try await send(builder.request, session: session)
+        let response = try await traced("page at \(position)") { try await send(builder.request, session: session) }
         guard let queryInvocation = response.response(to: query.callId), !queryInvocation.isError,
               let getInvocation = response.response(to: get.callId), !getInvocation.isError
         else {

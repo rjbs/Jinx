@@ -85,7 +85,9 @@ extension SyncEngine {
     defer { wake = nil }
     try? await tailJournal()
 
-    let pushTask = Task { [weak self] in await self?.listenForPush() }
+    let pushTask = Task { [weak self] in
+      await TransportContext.$purpose.withValue("push") { await self?.listenForPush() }
+    }
     let pollTask = pollInterval.map { interval in
       Task { [weak self] in
         while !Task.isCancelled {

@@ -174,7 +174,7 @@ public actor BlobStore<Store: SyncStore> {
     guard let url = session.uploadUrl.expand(["accountId": accountId]) else {
       throw JMAPError.badSession("uploadUrl")
     }
-    return try await transport.upload(data, contentType: contentType, to: url)
+    return try await traced("blob upload") { try await transport.upload(data, contentType: contentType, to: url) }
   }
 
   // MARK: - Plumbing
@@ -194,7 +194,7 @@ public actor BlobStore<Store: SyncStore> {
 
     let download: BlobDownload
     do {
-      download = try await transport.download(from: url, range: range)
+      download = try await traced("blob \(record.blobId)") { try await transport.download(from: url, range: range) }
     } catch JMAPError.httpStatus(404, _) {
       try await evict(record.blobId)
       await onGone?(record.blobId)
