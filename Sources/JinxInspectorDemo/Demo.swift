@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import Foundation
 import Jinx
@@ -121,3 +122,11 @@ struct JinxInspectorDemo: App {
     }
   }
 }
+#else
+// The demo is a macOS window; elsewhere it builds to nothing, so a build
+// of every target for iOS still succeeds. -- claude, 2026-11-06
+@main
+enum JinxInspectorDemo {
+  static func main() {}
+}
+#endif
