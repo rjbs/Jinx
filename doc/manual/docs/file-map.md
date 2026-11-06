@@ -23,6 +23,8 @@ stack order from the bottom.
 | `Transport.swift` | `JMAPTransport`, `JMAPClient`, authenticators, blob upload and download. |
 | `ServerSentEvents.swift` | The SSE parser, line splitter, and `StateChange`. |
 | `EventSourceClient.swift` | The reconnecting push client and `Backoff`. |
+| `Recording.swift` | `TransportContext`, `TransportExchange`, `WireTap`, `WireTapToken`, `TransportRecorder`. |
+| `CallSummary.swift` | `CallExchange` and the one-line summaries of calls and responses. |
 
 ## JinxPatch
 
@@ -55,6 +57,8 @@ stack order from the bottom.
 | `Windowed.swift` | Subscriptions, pins, fetch, the windowed pass, eviction, resync. |
 | `BlobStore.swift` | The blob store actor and the engine's blob extensions. |
 | `Runner.swift` | `run()`, the push listener, journal tailing, Darwin notifications. |
+| `Tracing.swift` | `traced`, the signposter, wire taps, and `EngineTransport`, which reports exchanges to them. |
+| `Inspection.swift` | `SyncInspecting`, the read-only look inside an engine, and its conformance. |
 
 `Sources/Cnotify` is a two-file system library module that exposes
 `notify(3)` to Swift for `Runner.swift`.
@@ -73,11 +77,28 @@ stack order from the bottom.
 | `ScriptedServer.swift` | The transport implementation, state, faults, the test-facing API, push and blobs. |
 | `Methods.swift` | `/get`, `/changes`, `/set`, `/query`, `/queryChanges` over plain JSON. |
 
+## JinxInspector
+
+SwiftUI views over `any SyncInspecting`, for an app's debug menu.
+
+| File | Holds |
+|---|---|
+| `InspectorView.swift` | `JinxInspectorView`, the three tabs, and small shared views. |
+| `StoreBrowser.swift` | Types, objects and their local patches, pending log, subscriptions, blobs. |
+| `RequestLogView.swift` | The request log, recorded by a wire tap while the view is open. |
+| `JournalView.swift` | The tail of the journal, newest first. |
+| `JSONValueText.swift` | Pretty-printed JSON for display. |
+
+`Sources/JinxInspectorDemo` is a macOS app showing the inspector over a
+scripted server that keeps changing; run it with
+`swift run JinxInspectorDemo`.
+
 ## Tests
 
 One target per module, under `Tests/`.  `JinxTests` holds the
 engine suites, `SyncInTests`, `SyncOutTests`, `WindowedTests`, `BlobTests`,
-`RunnerTests` and `ClassificationTests`, and `Harness.swift`, which
+`RunnerTests`, `ClassificationTests`, `WireTapTests`, `TraceTests` and
+`InspectionTests`, and `Harness.swift`, which
 wires a scripted server, an in-memory store and an engine together.
 `JinxTypesTests` runs the standard descriptors against the scripted
 server.

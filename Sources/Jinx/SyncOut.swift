@@ -30,7 +30,8 @@ extension SyncEngine {
       if items.isEmpty { break }
       let batches = try buildBatches(items, session: session)
       if batches.isEmpty { continue }
-      let shouldContinue = try await sendAndApply(batches, session: session)
+      let names = batches.map(\.type).joined(separator: ", ")
+      let shouldContinue = try await traced("set \(names)") { try await sendAndApply(batches, session: session) }
       if !shouldContinue { break }
     }
     status.lastSyncOut = Date()
@@ -429,7 +430,9 @@ extension SyncEngine {
     let query = builder.call("\(type)/query", .queryArguments(accountId: accountId, filter: [identity.filterProperty: value], limit: 1))
     let response: Response
     do {
-      response = try await transport.send(builder.request, to: session.apiUrl)
+      response = try await traced("adopt \(type) by \(identity.property)") {
+        try await transport.send(builder.request, to: session.apiUrl)
+      }
     } catch {
       try await releaseClaims()
       throw SyncError.retryable("identity query: \(error)")

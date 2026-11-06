@@ -155,12 +155,17 @@ private func insert(
   var second = ChangeSet(accountId: account, source: .local)
   second.noteDestroyed(LocalKey(3), type: "Thing")
 
+  let before = Date()
   let seqs = try await store.write { [first, second] tx in
     [try tx.appendJournal(first, processId: "p1"), try tx.appendJournal(second, processId: "p2")]
   }
   #expect(seqs == [1, 2])
   #expect(try await store.read { tx in try tx.latestJournalSeq() } == 2)
-  #expect(try await store.read { tx in try tx.journal(after: 0) } == [JournalEntry(seq: 1, processId: "p1", changeSet: first), JournalEntry(seq: 2, processId: "p2", changeSet: second)])
+  let entries = try await store.read { tx in try tx.journal(after: 0) }
+  #expect(entries.map(\.seq) == [1, 2])
+  #expect(entries.map(\.processId) == ["p1", "p2"])
+  #expect(entries.map(\.changeSet) == [first, second])
+  #expect(entries.allSatisfy { (before...Date()).contains($0.committed) })
   #expect(try await store.read { tx in try tx.journal(after: 1) }.map(\.seq) == [2])
 }
 

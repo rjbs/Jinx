@@ -142,7 +142,7 @@ extension SyncEngine {
       var args = descriptor.getArguments(accountId: accountId, ids: chunk)
       for (key, value) in arguments where key != "accountId" && key != "ids" { args[key] = value }
       let call = builder.call("\(type)/get", args)
-      let response = try await send(builder.request, session: session)
+      let response = try await traced("fetch \(type)") { try await send(builder.request, session: session) }
       guard let invocation = response.response(to: call.callId), !invocation.isError else {
         throw SyncError.retryable("\(type)/get: \(response.response(to: call.callId)?.methodError?.type ?? "no response")")
       }
@@ -182,7 +182,7 @@ extension SyncEngine {
       for type in stateless {
         calls[type.name] = builder.call("\(type.name)/get", type.getArguments(accountId: accountId, ids: []))
       }
-      let response = try await send(builder.request, session: session)
+      let response = try await traced("initial states") { try await send(builder.request, session: session) }
       let initial = calls.compactMapValues { call -> String? in
         guard let invocation = response.response(to: call.callId), !invocation.isError else { return nil }
         return try? GetResponse(json: invocation.arguments).state
@@ -206,7 +206,7 @@ extension SyncEngine {
         changeCalls[type.name] = builder.call("\(type.name)/changes", .changesArguments(accountId: accountId, sinceState: state, maxChanges: chunk))
       }
       guard !builder.isEmpty else { break }
-      let changesResponse = try await send(builder.request, session: session)
+      let changesResponse = try await traced("changes") { try await send(builder.request, session: session) }
 
       var changes: [String: ChangesResponse] = [:]
       var hasMore = false
@@ -273,7 +273,7 @@ extension SyncEngine {
           getCalls.append((type, refresh.call("\(type)/get", descriptors[type]!.getArguments(accountId: accountId, ids: part))))
         }
       }
-      let refreshResponse = refresh.isEmpty ? nil : try await send(refresh.request, session: session)
+      let refreshResponse = refresh.isEmpty ? nil : try await traced("refresh") { try await send(refresh.request, session: session) }
 
       var newResults: [String: SubscriptionResult] = [:]
       var subscriptionsNeedingFullQuery: [QuerySubscription] = []
@@ -311,7 +311,7 @@ extension SyncEngine {
         for sub in subscriptionsNeedingFullQuery {
           calls[sub.id] = again.call("\(sub.type)/query", sub.queryArguments(accountId: accountId))
         }
-        let response = try await send(again.request, session: session)
+        let response = try await traced("full queries") { try await send(again.request, session: session) }
         for sub in subscriptionsNeedingFullQuery {
           guard let invocation = response.response(to: calls[sub.id]!.callId), !invocation.isError else {
             throw SyncError.retryable("\(sub.type)/query (\(sub.id)) failed")
@@ -424,7 +424,7 @@ extension SyncEngine {
       }
     }
     guard !builder.isEmpty else { return fetched }
-    let response = try await send(builder.request, session: session)
+    let response = try await traced("references") { try await send(builder.request, session: session) }
     for (type, call) in calls {
       guard let invocation = response.response(to: call.callId), !invocation.isError else {
         throw SyncError.retryable("\(type)/get failed fetching missing objects")
@@ -467,7 +467,7 @@ extension SyncEngine {
   private func queryPage(_ sub: QuerySubscription, position: Int, limit: Int?, session: Session) async throws -> QueryResponse {
     var builder = RequestBuilder(using: capabilities)
     let call = builder.call("\(sub.type)/query", sub.queryArguments(accountId: accountId, position: position, limit: limit))
-    let response = try await send(builder.request, session: session)
+    let response = try await traced("query \(sub.id) at \(position)") { try await send(builder.request, session: session) }
     guard let invocation = response.response(to: call.callId), !invocation.isError else {
       let error = response.response(to: call.callId)?.methodError?.type ?? "no response"
       throw SyncError.retryable("\(sub.type)/query (\(sub.id)) at \(position): \(error)")

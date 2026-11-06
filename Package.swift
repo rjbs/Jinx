@@ -16,6 +16,7 @@ let package = Package(
     .library(name: "JinxPatch", targets: ["JinxPatch"]),
     .library(name: "JinxJSON", targets: ["JinxJSON"]),
     .library(name: "JinxScriptedServer", targets: ["JinxScriptedServer"]),
+    .library(name: "JinxInspector", targets: ["JinxInspector"]),
   ],
   dependencies: [
     .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
@@ -36,6 +37,11 @@ let package = Package(
     .target(name: "Jinx", dependencies: ["Cnotify", "JinxJSON", "JinxPatch", "JinxWire", "JinxStore"]),
     .target(name: "JinxTypes", dependencies: ["Jinx"]),
     .target(name: "JinxScriptedServer", dependencies: ["JinxJSON", "JinxPatch", "JinxWire"]),
+    .target(name: "JinxInspector", dependencies: ["Jinx", "JinxJSON", "JinxPatch", "JinxStore", "JinxWire"]),
+    .executableTarget(
+      name: "JinxInspectorDemo",
+      dependencies: ["Jinx", "JinxInspector", "JinxScriptedServer", "JinxStore", "JinxWire"]
+    ),
 
     .testTarget(name: "JinxJSONTests", dependencies: ["JinxJSON"]),
     .testTarget(name: "JinxPatchTests", dependencies: ["JinxPatch"]),

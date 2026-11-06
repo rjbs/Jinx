@@ -348,11 +348,12 @@ public struct GRDBTransaction: SyncTransaction {
   }
 
   public func journal(after seq: Int64) throws -> [JournalEntry] {
-    try Row.fetchAll(db, sql: "SELECT seq, process, change_set FROM jinx_journal WHERE seq > ? ORDER BY seq", arguments: [seq]).map { row in
+    try Row.fetchAll(db, sql: "SELECT seq, process, created_at, change_set FROM jinx_journal WHERE seq > ? ORDER BY seq", arguments: [seq]).map { row in
       JournalEntry(
         seq: row["seq"],
         processId: row["process"],
-        changeSet: try JSONDecoder().decode(ChangeSet.self, from: Data((row["change_set"] as String).utf8))
+        changeSet: try JSONDecoder().decode(ChangeSet.self, from: Data((row["change_set"] as String).utf8)),
+        committed: Date(timeIntervalSince1970: row["created_at"])
       )
     }
   }

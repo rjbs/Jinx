@@ -123,7 +123,7 @@ public struct PendingEntry: Sendable, Hashable {
 /// What one commit changed, as the change stream reports it and the
 /// journal records it.
 public struct ChangeSet: Sendable, Hashable, Codable {
-  public enum Source: String, Sendable, Codable {
+  public enum Source: String, Sendable, Codable, CaseIterable {
     /// A local write through the engine.
     case local
     /// A `/set` response applied.
@@ -230,11 +230,14 @@ public struct JournalEntry: Sendable, Hashable {
   /// The process that committed it, so another process can skip its own.
   public var processId: String
   public var changeSet: ChangeSet
+  /// When it was committed, by the committing process's clock.
+  public var committed: Date
 
-  public init(seq: Int64, processId: String, changeSet: ChangeSet) {
+  public init(seq: Int64, processId: String, changeSet: ChangeSet, committed: Date) {
     self.seq = seq
     self.processId = processId
     self.changeSet = changeSet
+    self.committed = committed
   }
 }
 
