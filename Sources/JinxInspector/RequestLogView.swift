@@ -116,6 +116,21 @@ struct ExchangeRow: View {
   }
 }
 
+/// A label that opens onto pretty JSON.
+struct JSONDisclosure: View {
+  let label: String
+  let value: JSONValue
+
+  init(_ label: String, _ value: JSONValue) {
+    self.label = label
+    self.value = value
+  }
+
+  var body: some View {
+    DisclosureGroup(label) { JSONText(JSONValueText(value)) }
+  }
+}
+
 struct ExchangeDetail: View {
   let exchange: TransportExchange
 
@@ -133,9 +148,9 @@ struct ExchangeDetail: View {
           LabeledContent("Asked", value: call.callSummary)
           LabeledContent("Answer", value: call.responseSummary)
             .foregroundStyle(call.responses.contains(where: \.isError) ? .red : .primary)
-          DisclosureGroup("Arguments") { JSONText(JSONValueText(call.call.arguments)) }
-          ForEach(Array(call.responses.enumerated()), id: \.offset) { _, response in
-            DisclosureGroup("Response: \(response.name)") { JSONText(JSONValueText(response.arguments)) }
+          JSONDisclosure("Arguments", call.call.arguments)
+          ForEach(responseRows(call), id: \.id) { row in
+            JSONDisclosure("Response: \(row.response.name)", row.response.arguments)
           }
         } header: {
           Text("\(call.call.callId)  \(call.call.name)").font(.body.monospaced())
@@ -153,6 +168,14 @@ struct ExchangeDetail: View {
       }
     }
     .navigationTitle("#\(exchange.id) \(exchange.title)")
+  }
+
+  /// Each response with an id unique in the whole list.  On macOS the
+  /// List tracks rows by id across sections, so offsets, which repeat
+  /// from one call to the next, made it draw and expand one call's
+  /// response in place of another's. -- claude, 2026-11-06
+  private func responseRows(_ call: CallExchange) -> [(id: String, response: Invocation)] {
+    call.responses.enumerated().map { ("\(call.call.callId)/\($0.offset)", $0.element) }
   }
 
   private var url: String? {
