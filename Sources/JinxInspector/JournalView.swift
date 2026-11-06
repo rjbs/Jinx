@@ -14,7 +14,7 @@ struct JournalView: View {
       List {
         if let failure { Text(failure).foregroundStyle(.red) }
         ForEach(entries.reversed(), id: \.seq) { entry in
-          JournalRow(entry: entry)
+          JournalRow(entry: entry, widestSeq: entries.last.map { "\($0.seq)" } ?? "")
         }
       }
       .overlay {
@@ -40,13 +40,22 @@ struct JournalView: View {
 
 struct JournalRow: View {
   let entry: JournalEntry
+  /// The longest sequence number in the list, so the columns after it
+  /// line up.
+  let widestSeq: String
 
   var body: some View {
     VStack(alignment: .leading, spacing: 2) {
       HStack {
-        Text("\(entry.seq)").monospacedDigit().foregroundStyle(.secondary)
-        Badge(entry.changeSet.source.rawValue, sourceColor)
+        ZStack(alignment: .trailing) {
+          Text(widestSeq).hidden()
+          Text("\(entry.seq)")
+        }
+        .monospacedDigit()
+        .foregroundStyle(.secondary)
+        Badge(entry.changeSet.source.rawValue, sourceColor, sizedFor: ChangeSet.Source.allCases.map(\.rawValue))
         Text(entry.processId).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
+        Text(entry.committed.clockTime).font(.caption.monospaced()).foregroundStyle(.secondary)
       }
       ForEach(entry.changeSet.types.keys.sorted(), id: \.self) { type in
         Text("\(type): \(summary(entry.changeSet.types[type]!))").font(.callout.monospaced())

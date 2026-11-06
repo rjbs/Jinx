@@ -123,7 +123,7 @@ public struct PendingEntry: Sendable, Hashable {
 /// What one commit changed, as the change stream reports it and the
 /// journal records it.
 public struct ChangeSet: Sendable, Hashable, Codable {
-  public enum Source: String, Sendable, Codable {
+  public enum Source: String, Sendable, Codable, CaseIterable {
     /// A local write through the engine.
     case local
     /// A `/set` response applied.

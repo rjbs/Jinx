@@ -82,14 +82,21 @@ struct Field: View {
 struct Badge: View {
   let text: String
   let color: Color
+  let sizedFor: [String]
 
-  init(_ text: String, _ color: Color = .secondary) {
+  /// `sizedFor` lists other texts the badge should be wide enough to
+  /// hold, so badges in a column line up.
+  init(_ text: String, _ color: Color = .secondary, sizedFor: [String] = []) {
     self.text = text
     self.color = color
+    self.sizedFor = sizedFor
   }
 
   var body: some View {
-    Text(text)
+    ZStack {
+      ForEach(sizedFor, id: \.self) { Text($0).hidden() }
+      Text(text)
+    }
       .font(.caption2.weight(.semibold))
       .padding(.horizontal, 6)
       .padding(.vertical, 1)
