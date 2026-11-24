@@ -8,6 +8,9 @@ use_directory_urls: true
 
 theme:
   name: material
+  # Zensical has two looks.  "classic" is that of Material for MkDocs, which
+  # this manual was written for; the other, and the default, is "modern".
+  variant: classic
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default

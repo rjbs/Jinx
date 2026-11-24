@@ -15,4 +15,4 @@ JMAP server for tests.  Run `swift test` to see it all pass.
 - [plan.md](doc/plan.md): the proposed architecture and the order of work.
 - [manual/](doc/manual/): a walk through the library for someone who knows
   JMAP but has not built a client.  `doc/manual/build.sh serve` renders it
-  with mkdocs-material in Docker.
+  with Zensical in Docker.
