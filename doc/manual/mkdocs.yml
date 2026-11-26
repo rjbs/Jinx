@@ -3,7 +3,11 @@ site_description: >-
   A walk through Jinx, a Swift library that keeps a local copy of JMAP
   data in sync with a server, written for people who know the protocol
   but have not built a client.
-site_url: ""
+# The 404 page can be served at any depth, so it alone needs the site's path
+# to find its style sheets, and it takes that from here.  Every other page
+# links relatively.  If the site moves, change this, or the 404 page comes
+# out unstyled.
+site_url: https://semiotic.systems/Jinx/
 use_directory_urls: true
 
 theme:
