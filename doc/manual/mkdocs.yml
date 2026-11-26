@@ -1,4 +1,4 @@
-site_name: Jinx Manual
+site_name: Jinx
 site_description: >-
   A walk through Jinx, a Swift library that keeps a local copy of JMAP
   data in sync with a server, written for people who know the protocol
