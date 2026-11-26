@@ -86,7 +86,7 @@ separately from its summary, and the reason Jinx has no opinion about
 how an app models an Email.
 
 The requirements of all three are gathered in
-[`doc/consumers.md`](https://github.com/rjbs/Jinx/blob/main/doc/consumers.md).
+[`doc/consumers.md`](https://github.com/rjbs/jinx/blob/main/doc/consumers.md).
 
 ## What Jinx is not
 

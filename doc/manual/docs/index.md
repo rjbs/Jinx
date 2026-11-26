@@ -12,7 +12,7 @@ the protocol leaves to the client and show what Jinx does about it.
 
 It is not reference documentation.  The public API is documented in the
 source, and the design that preceded the code is in
-[`doc/plan.md`](https://github.com/rjbs/Jinx/blob/main/doc/plan.md).
+[`doc/plan.md`](https://github.com/rjbs/jinx/blob/main/doc/plan.md).
 When this manual and the code disagree, the code is right and the
 manual has a bug.
 
