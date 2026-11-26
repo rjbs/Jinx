@@ -14,7 +14,7 @@ real answers.
 The design calls for three tiers.
 
 1. **Unit tests** on the pure pieces: `JinxJSON`, `JinxPatch`, the
-   request builder and the typed responses in `JinxWire`, and the GRDB
+   request builder, and the typed responses in `JinxWire`, and the GRDB
    store.  These are ordinary tests of functions, and the earlier
    units pointed at them.
 2. **Scripted-server tests**, where the engine runs against the
@@ -38,18 +38,18 @@ third are meant to share, do not yet.
 
 `ScriptedServer` in `JinxScriptedServer` implements `JMAPTransport`,
 so the engine cannot tell it from a network, and it is generic: any
-`Foo/get`, `Foo/changes`, `Foo/set`, `Foo/query` and
+`Foo/get`, `Foo/changes`, `Foo/set`, `Foo/query`, and
 `Foo/queryChanges` works on objects that are plain JSON, for whatever
 type names a test uses.  It keeps a modification sequence per account
 and type, tombstones for destroyed objects, and server versions of query
 results, so that `/changes` between any two states it has held, and
 `/queryChanges` where a type is configured to allow it, are computed
 rather than scripted.  It resolves creation ids and result references,
-enforces `maxCallsInRequest`, `maxObjectsInGet` and `maxObjectsInSet`
+enforces `maxCallsInRequest`, `maxObjectsInGet`, and `maxObjectsInSet`
 from its `Limits`, serves blobs with range requests, and delivers
 `StateChange` events to push subscribers after every `/set`.
 
-A test drives it two ways.  The first is directly: `create`, `update`
+A test drives it two ways.  The first is directly: `create`, `update`,
 and `destroy` change the server's data as another client would, and
 each one is a state transition the engine will see on its next sync-in.
 The second is by **faults**, one-shot misbehaviors consumed in order,

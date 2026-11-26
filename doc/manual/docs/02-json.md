@@ -66,7 +66,7 @@ That distinction shows up in the subscript.  Reading `value["due"]`
 returns a `JSONValue?`: `nil` if the key is absent or the value is not
 an object, `.null` if the key is present and null.  Writing `nil`
 removes the key; writing `.null` stores a null.  There is a matching
-accessor per kind, `stringValue`, `arrayValue` and so on, each
+accessor per kind, `stringValue`, `arrayValue`, and so on, each
 returning `nil` for any other kind rather than crashing.
 
 ## Serialization

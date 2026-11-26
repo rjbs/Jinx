@@ -200,7 +200,7 @@ change set names the subscription and, if evicted, the destroyed key.
 ## Offline
 
 Nothing above assumed a network at the time of the write.  With the
-radio off, the reads, the pin and the two updates all succeed against
+radio off, the reads, the pin, and the two updates all succeed against
 the local store; the two updates collapse into one entry, since they
 touch the same object; the sync-out fails with a transport error, the
 claim is released, and the run loop backs off.  When the network

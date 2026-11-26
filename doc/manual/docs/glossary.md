@@ -4,7 +4,7 @@ The words this manual uses are the words the code uses.  Each entry
 names the type or function where there is one.
 
 **Change set** (`ChangeSet`).  What one commit changed: created,
-updated and destroyed objects by type and local key, ids assigned,
+updated, and destroyed objects by type and local key, ids assigned,
 objects whose push failed, subscriptions whose result changed, and
 blob changes.  Emitted on the change stream and stored in the journal.
 Unit 6.
@@ -78,7 +78,7 @@ replacement encoding may change.  Unit 4.
 remove.  Unit 4.
 
 **Pending entry** (`PendingEntry`).  The log record that an object has
-a create, update or destroy waiting to be synced out.  At most one per
+a create, update, or destroy waiting to be synced out.  At most one per
 object; stores no patch.  Unit 5.
 
 **Pin** (`pin(_:ids:)`, `BlobStore.pin`).  For objects, ids the app
@@ -135,5 +135,5 @@ its objects, read in one transaction.  Unit 10.
 **Windowed** (`TypeDescriptor.Mode.windowed`).  A type of which only
 the retained objects are held.  Unit 10.
 
-**Wipe** (`wipe()`).  Discarding every object, entry and state for an
+**Wipe** (`wipe()`).  Discarding every object, entry, and state for an
 account.  Unit 9.

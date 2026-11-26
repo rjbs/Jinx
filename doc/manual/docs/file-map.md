@@ -15,10 +15,10 @@ stack order from the bottom.
 | File | Holds |
 |---|---|
 | `Session.swift` | The decoded session resource and core capabilities. |
-| `URLTemplate.swift` | RFC 6570 level 1 templates for download, upload and push URLs. |
+| `URLTemplate.swift` | RFC 6570 level 1 templates for download, upload, and push URLs. |
 | `Invocation.swift` | `Invocation`, `ResultReference`, `Request`, `Response`. |
 | `RequestBuilder.swift` | Call ids and back-references. |
-| `StandardMethods.swift` | Typed `/get`, `/changes`, `/set`, `/query`, `/queryChanges` responses and argument builders. |
+| `StandardMethods.swift` | Typed `/get`, `/changes`, `/set`, `/query`, `/queryChanges` responses, and argument builders. |
 | `Errors.swift` | `JMAPError`, `RequestError`, `MethodError`, `SetError`. |
 | `Transport.swift` | `JMAPTransport`, `JMAPClient`, authenticators, blob upload and download. |
 | `ServerSentEvents.swift` | The SSE parser, line splitter, and `StateChange`. |
@@ -74,7 +74,7 @@ stack order from the bottom.
 
 | File | Holds |
 |---|---|
-| `ScriptedServer.swift` | The transport implementation, state, faults, the test-facing API, push and blobs. |
+| `ScriptedServer.swift` | The transport implementation, state, faults, the test-facing API, push, and blobs. |
 | `Methods.swift` | `/get`, `/changes`, `/set`, `/query`, `/queryChanges` over plain JSON. |
 
 ## JinxInspector
@@ -84,7 +84,7 @@ SwiftUI views over `any SyncInspecting`, for an app's debug menu.
 | File | Holds |
 |---|---|
 | `InspectorView.swift` | `JinxInspectorView`, the three tabs, and small shared views. |
-| `StoreBrowser.swift` | Types, objects and their local patches, pending log, subscriptions, blobs. |
+| `StoreBrowser.swift` | Types, objects, and their local patches, pending log, subscriptions, blobs. |
 | `RequestLogView.swift` | The request log, recorded by a wire tap while the view is open. |
 | `JournalView.swift` | The tail of the journal, newest first. |
 | `JSONValueText.swift` | Pretty-printed JSON for display. |
@@ -97,8 +97,8 @@ scripted server that keeps changing; run it with
 
 One target per module, under `Tests/`.  `JinxTests` holds the
 engine suites, `SyncInTests`, `SyncOutTests`, `WindowedTests`, `BlobTests`,
-`RunnerTests`, `ClassificationTests`, `WireTapTests`, `TraceTests` and
+`RunnerTests`, `ClassificationTests`, `WireTapTests`, `TraceTests`, and
 `InspectionTests`, and `Harness.swift`, which
-wires a scripted server, an in-memory store and an engine together.
+wires a scripted server, an in-memory store, and an engine together.
 `JinxTypesTests` runs the standard descriptors against the scripted
 server.

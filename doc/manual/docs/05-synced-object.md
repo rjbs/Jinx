@@ -190,7 +190,7 @@ yet, and `lastError` so that it can say why.
 ## Where to look
 
 - `Sources/JinxStore/Records.swift` defines `StoredObject`,
-  `PendingEntry` and `LocalKey`.  `Sources/Jinx/Writes.swift` is the
+  `PendingEntry`, and `LocalKey`.  `Sources/Jinx/Writes.swift` is the
   write path, and `applyFetched` in `Sources/Jinx/SyncIn.swift` is the
   table above as code.
 - `swift test --filter JinxTests.SyncOutTests`.

@@ -62,7 +62,7 @@ again on every launch: an identical redefinition changes nothing and
 triggers no pass.  Redefining it with different parameters starts it
 over, and that includes the extra arguments, which are part of the
 subscription's identity because they change what the server returns.
-A subscription with no filter, no limit and position zero covers the
+A subscription with no filter, no limit, and position zero covers the
 whole type, and while it exists the type behaves as a full mirror.
 
 A query can depend on more than its type: a saved search kept in
@@ -93,7 +93,7 @@ The read API has a subtlety.  `result(of:)` returns the result, and
 `objects(in:)` returns the window's objects in order, but a window
 that is cut by numbers in `extra` must not be read in two calls,
 because a commit can land between them and the counts would describe
-a different id list.  `window(of:)` reads the subscription, its result
+a different id list.  `window(of:)` reads the subscription, its result,
 and its objects in one transaction and returns them as a `Window`.
 It also reports `missingIds`, the ids in the result whose objects are
 not held, which is normally empty and is not when a `/get` returned

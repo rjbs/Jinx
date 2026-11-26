@@ -15,12 +15,12 @@ you back something typed.
 Everything starts with the session resource, section 2 of the RFC.
 `Session` holds it decoded: the capabilities, the accounts, the primary
 account per capability, the API URL, and the three URL templates for
-download, upload and push.
+download, upload, and push.
 
 Two things in it matter to the rest of Jinx.  The first is `core`, the
 `urn:ietf:params:jmap:core` capability object, which carries the limits
 a client must honor: `maxObjectsInGet`, `maxCallsInRequest`,
-`maxSizeRequest` and the rest.  The engine chunks its `/get` calls to
+`maxSizeRequest`, and the rest.  The engine chunks its `/get` calls to
 `maxObjectsInGet` and its `/set` calls to `maxObjectsInSet`, and it
 takes those numbers from here.  The second is the URL templates.
 Download and upload URLs are RFC 6570 templates with variables such as
@@ -88,7 +88,7 @@ usual reading of a response is one line:
 let got = try GetResponse(json: try response.response(to: get.callId)!.result())
 ```
 
-`GetResponse`, `ChangesResponse`, `SetResponse`, `QueryResponse` and
+`GetResponse`, `ChangesResponse`, `SetResponse`, `QueryResponse`, and
 `QueryChangesResponse` are the standard method shapes of section 5,
 decoded from the arguments.  Each is strict about the members the RFC
 makes mandatory, so a `/changes` response without `newState` is a
@@ -99,7 +99,7 @@ category sort returns a `groupByCounts` that a mail client wants and
 the RFC does not know about.
 
 Beside the decoders are argument builders, `getArguments`,
-`changesArguments`, `setArguments` and so on, that omit what is not
+`changesArguments`, `setArguments`, and so on, that omit what is not
 set.  They exist so that the engine's requests are built in one place
 and so that a hand-built request looks the same as an engine-built
 one.
@@ -154,7 +154,7 @@ request may have succeeded.  Anything in the error object beyond
 live there.
 
 **`SetError`** is the per-object failure inside a `/set` response,
-section 5.3.  The call succeeded; this one create, update or destroy
+section 5.3.  The call succeeded; this one create, update, or destroy
 did not.  `properties` is filled for `invalidProperties`, and
 `existingId` for `alreadyExists`, which unit 9 uses to adopt an object
 the server says it already has.
@@ -192,7 +192,7 @@ HTTP 400 with a JSON body, land in the typed path.
 
 ## Push
 
-The session's `eventSourceUrl` is a template with `types`, `closeafter`
+The session's `eventSourceUrl` is a template with `types`, `closeafter`,
 and `ping` variables.  `EventSourceClient.url(from:types:closeAfter:ping:)`
 expands it, and the client then holds the connection open:
 
@@ -209,7 +209,7 @@ for await event in client.events() {
 Three pieces make this up.  `ServerSentEventParser` is an incremental
 parser for the `text/event-stream` format, fed one line at a time, and
 it implements exactly as much of the SSE grammar as JMAP push uses:
-`event`, `data`, `id`, `retry` and comments.  `JMAPClient.events(from:)`
+`event`, `data`, `id`, `retry`, and comments.  `JMAPClient.events(from:)`
 reads bytes from `URLSession`, splits lines, and yields parsed events
 until the connection ends.  `EventSourceClient` wraps that in a loop
 that never ends on its own: when the connection drops it yields

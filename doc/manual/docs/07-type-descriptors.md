@@ -21,7 +21,7 @@ The engine collects the capabilities of every configured type into
 each request.
 
 **`mode`**: `full` or `windowed`.  Whether every object of the type
-is held locally, or only what subscriptions, pins, pending changes and
+is held locally, or only what subscriptions, pins, pending changes, and
 references retain.  Unit 10.
 
 **`syncAfter`**: the types this one must sync after.  A sync-in fetches
@@ -61,7 +61,7 @@ app's blob policy can act.  Juke's retagging case, in unit 11.
 
 **`getArguments`**: extra arguments merged into every `/get` of the
 type.  Standard types need this: `Email/get` takes `bodyProperties`,
-`fetchHTMLBodyValues` and `maxBodyValueBytes`, and no generic
+`fetchHTMLBodyValues`, and `maxBodyValueBytes`, and no generic
 mechanism can know that.
 
 **`mayPatch`**: the veto from unit 4, a closure from a path to
@@ -83,7 +83,7 @@ public static let mailbox = TypeDescriptor(
 
 Mailbox is full: every account's mailbox list fits on a phone.  The
 owned set is the properties RFC 8621 section 2 lets a client set;
-`totalEmails`, `unreadThreads` and `myRights` are server-set and an
+`totalEmails`, `unreadThreads`, and `myRights` are server-set and an
 app's encoding must not be allowed to touch them.  A Mailbox
 references its parent, so a held mailbox keeps its parent held, which
 matters only if Mailbox were ever windowed and is recorded for

@@ -155,7 +155,7 @@ Retryable keeps the entry and releases the claim.  Too large halves
 the batch.  Permanent reverts the object: local value back to the
 server version, error recorded, entry cleared, and the change set names the
 key in `failed` so the app can tell the user.  `invalidProperties`,
-`notFound`, `forbidden` and `invalidPatch` are permanent because
+`notFound`, `forbidden`, and `invalidPatch` are permanent because
 sending the same thing again would draw the same answer.
 `stateMismatch` is retryable because Jinx never sends `ifInState`;
 if a server reports it anyway, a sync-in and another try are the right

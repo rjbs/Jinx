@@ -107,7 +107,7 @@ is the whole-object mistake again by another road.
 
 `mergingOwnedProperties(_:from:)` is the fix.  Given the set of
 properties the app owns, it copies exactly those members from the
-encoding into the full object, adding, replacing or removing each,
+encoding into the full object, adding, replacing, or removing each,
 and leaves every other member as it was.  The result is a full object
 that differs from the original only in owned properties, and the diff
 of that against the server version names only owned properties.
@@ -170,7 +170,7 @@ is the local value now?
 <figcaption>The pending patch is recomputed from the old pair and re-applied to the new server object.</figcaption>
 </figure>
 
-Three inputs: the server version, the local value and the fetched object.
+Three inputs: the server version, the local value, and the fetched object.
 Step one diffs server version to local, which recovers the pending patch.
 Step two applies that patch to the fetched object, and the result is
 the new local value.  The fetched object becomes the new server version.

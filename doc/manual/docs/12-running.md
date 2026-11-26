@@ -15,7 +15,7 @@ how an app consumes what it produces.
 Task { await engine.run(pollInterval: .seconds(900)) }
 ```
 
-`run()` runs until its task is cancelled.  It takes a `Backoff` for
+`run()` runs until its task is canceled.  It takes a `Backoff` for
 retries, a debounce that defaults to a hundred milliseconds, and an
 optional poll interval for when push is unavailable.  Inside, it does
 this.
@@ -110,7 +110,7 @@ values, so a `for await` on the main actor is correct without any
 further ceremony, and this is the whole of Jinx's observation story:
 no Combine, no NotificationCenter, no SwiftUI types.  A consumer that
 wants to be finer than "something about Tasks changed" reads the keys
-in `created`, `updated` and `destroyed`, and `idsAssigned` for creates
+in `created`, `updated`, and `destroyed`, and `idsAssigned` for creates
 that just got their ids.
 
 The engine itself is an actor and is never main-actor isolated.  Every
@@ -134,7 +134,7 @@ integration; the run loop need not be running for a pass to work.
 
 ## Where to look
 
-- `Sources/Jinx/Runner.swift`: `run`, `listenForPush`, `tailJournal`
+- `Sources/Jinx/Runner.swift`: `run`, `listenForPush`, `tailJournal`,
   and the `DarwinNotification` wrapper over the `notify(3)` API, which
   needs the small `Cnotify` system library module in `Sources/Cnotify`.
 - `swift test --filter JinxTests.RunnerTests`.

@@ -125,7 +125,7 @@ the server's.
 
 Every committed round and chunk emits a change set with source
 `sync-in`.  `currentStatus()` returns a `SyncStatus` with `lastSyncIn`,
-`lastSyncOut`, `pendingCount`, `lastFailure` and the `initialSync`
+`lastSyncOut`, `pendingCount`, `lastFailure`, and the `initialSync`
 progress map.  There is no "syncing" boolean; an app that wants a
 spinner watches `initialSync` for a long fetch and otherwise does not
 need one, because a sync-in is a few hundred milliseconds and the change

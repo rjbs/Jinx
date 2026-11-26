@@ -49,7 +49,7 @@ not cover its length, and complete when one range covers everything.
 ## The store
 
 `BlobStore` is an actor made from an engine with `makeBlobStore`,
-which wires it to the engine's transport, store and session and
+which wires it to the engine's transport, store, and session and
 installs the gone-blob handler described below.  Its configuration
 is a directory, a cache limit in bytes with a default of half a
 gigabyte, and whether to exclude the directory from backup, which
@@ -83,7 +83,7 @@ The reads and writes are these.
   in a later create.
 
 A download expands the session's `downloadUrl` template with the
-account id, the blob id, a name and a content type, and sends a
+account id, the blob id, a name, and a content type, and sends a
 `Range` header for anything less than the whole.  The transport in
 unit 3 parses the `Content-Range` of the 206 that comes back, and the
 record adds the range it received.  A whole-blob response with no
@@ -110,7 +110,7 @@ and still plays, but it is the old file.
 Two things catch this.  The first is on sync-in.  A type descriptor
 names its blob properties, Track's `blobId` and Email's `blobId`,
 and when `applyFetched` sees one change, the change set carries a
-`BlobChange` with the type, key, property, old id and new id.  The
+`BlobChange` with the type, key, property, old id, and new id.  The
 app's policy decides what to do: evict the old blob and download the
 new one if the old was pinned, or just evict.
 
