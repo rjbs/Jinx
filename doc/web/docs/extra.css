@@ -1,3 +1,6 @@
+/* The rules every Semiotic Systems site shares are in imprint.css, which
+   imprint's build-site copies in.  These are this site's own. */
+
 /* Hand-drawn SVG figures share these classes, so each diagram carries
    only its geometry. */
 .md-typeset figure.jinx-figure { width: auto; }
@@ -10,30 +13,3 @@
 .jinx-figure .ext { fill: none; stroke: var(--md-default-fg-color--light); stroke-width: 1.5; stroke-dasharray: 6 4; }
 .jinx-figure .nm  { fill: var(--md-default-fg-color); font-size: 15px; font-weight: 600; }
 .jinx-figure .sub { fill: var(--md-default-fg-color--light); font-size: 12px; }
-
-/* Zensical's modern look leaves the header the color of the page.  Ours
-   takes the primary color, which is also what tells this site apart from
-   its siblings. */
-.md-header {
-  color: var(--md-primary-bg-color);
-  background-color: var(--md-primary-fg-color);
-}
-
-/* The search button draws its text, icon, fill, and key hint from the page's
-   colors, which would be dark on dark here.  Redefining those for the
-   button alone is less to keep up than restyling each part. */
-.md-header .md-search__button {
-  --md-default-fg-color: var(--md-primary-bg-color);
-  --md-default-fg-color--lightest: #ffffff26;
-  --md-default-fg-color--lighter: #ffffff4d;
-  --md-default-bg-color--light: #ffffff33;
-}
-
-/* This rule is the reference's, and is the same in NerfJournal's manual.
-   Material lets code break anywhere, so that it never overflows, and in the
-   index's tables the summaries squeeze the column of names until they break
-   mid-word.  The longest name is short enough to keep whole. */
-.manual-index td:first-child code {
-  white-space: nowrap;
-  word-break: normal;
-}
