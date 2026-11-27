@@ -10,7 +10,7 @@ docc-manual - turn DocC's Markdown output into a manual for a Zensical site
 
 =head1 SYNOPSIS
 
-  docc-manual --docc DIR --out DIR [--intro TEXT]
+  docc-manual --docc DIR [--docc DIR ...] --out DIR [--title TEXT] [--intro TEXT]
 
 =head1 DESCRIPTION
 
@@ -24,13 +24,22 @@ This program reads the render JSON for the structure, and writes one page for
 each of the module's top-level declarations, with all of its members on that
 page, each under a heading with its own anchor.  A nested type and its
 members go on the page of the type it is nested in.  It also writes
-F<index.md>, which lists the pages under the module's topic headings.  Links
-between symbols become relative links between pages and anchors, and a link
-to anything not in the module becomes plain code.
+F<index.md>, which has the module's own documentation and lists the pages
+under the module's topic headings.  Links between symbols become relative
+links between pages and anchors, and a link to anything not in the manual
+becomes plain code.
 
 C<--docc> is the C<--output-path> given to C<docc convert>.  If it was given
 C<--source-service>, each declaration links to its source.  Anything in the
 C<--out> directory is left alone, but its pages are overwritten.
+
+C<--docc> can be given once for each of several modules, each converted by
+its own run of C<docc convert>.  Then each module's pages, and its
+F<index.md>, go in a directory named for the module, and the F<index.md> at
+the top, titled with C<--title>, lists the modules with their summaries.  The
+modules are listed in the order given.
+
+C<--intro> is a paragraph for the top F<index.md>, after its title.
 
 DocC lists a type's own implementations of a protocol's requirements under
 "Default Implementations," with the defaults the protocol supplies.  Run
@@ -45,38 +54,80 @@ use File::Path qw(make_path);
 use Getopt::Long;
 use JSON::PP;
 
-my $usage = "usage: $0 --docc DIR --out DIR [--intro TEXT]\n";
+my $usage = "usage: $0 --docc DIR [--docc DIR ...] --out DIR [--title TEXT] [--intro TEXT]\n";
 GetOptions(
-  'docc=s'  => \(my $docc),
+  'docc=s@' => \(my $docc = []),
   'out=s'   => \(my $out),
+  'title=s' => \(my $title = 'Reference'),
   'intro=s' => \(my $intro),
 ) or die $usage;
-$docc && $out && !@ARGV or die $usage;
+@$docc && $out && !@ARGV or die $usage;
 
-my %node = load_nodes("$docc/data/documentation");
-my ($module) = grep { ($_->{json}{metadata}{symbolKind} // '') eq 'module' } values %node;
-die "no module found under $docc\n" unless $module;
+# Every symbol of every module, by its identifier, which DocC begins with the
+# bundle identifier, so that two modules' symbols never share one.
+my %node;
+
+# Each module's node, in the order the modules were given, and the bundle
+# identifier for each module's name, which is how an absolute link, like
+# "/documentation/JinxStore/SyncStore", is turned back into an identifier.
+my @modules;
+my %bundle;
+
+for my $dir (@$docc) {
+  my %more = load_nodes("$dir/data/documentation");
+  my ($module) = grep { ($_->{json}{metadata}{symbolKind} // '') eq 'module' } values %more;
+  die "no module found under $dir\n" unless $module;
+
+  my ($bundle, $name) = $module->{json}{identifier}{url} =~ m{\A(doc://[^/]+)/documentation/([^/]+)}
+    or die "can't make sense of the identifier of the module in $dir\n";
+  die "$name is given twice\n" if $bundle{$name};
+  $bundle{$name} = $bundle;
+
+  for my $id (keys %more) {
+    die "$id is in two modules\n" if $node{$id};
+    $node{$id} = $more{$id};
+  }
+  push @modules, $module;
+}
+
+my $several = @modules > 1;
 
 # Every symbol's place in the manual, as [ page, anchor ], where a page's own
-# anchor is undef.  Links are resolved by looking things up here.
+# anchor is undef and a page is its path below --out without ".md".  Links
+# are resolved by looking things up here.
 my %place;
 my @pages;
-for my $section (topic_sections($module)) {
-  for my $id ($section->{identifiers}->@*) {
-    my $page = page_name($node{$id});
-    die "two declarations would be documented on $page.md\n"
-      if grep { $_->{name} eq $page } @pages;
+for my $module (@modules) {
+  my $dir = module_dir($module);
 
-    push @pages, { name => $page, id => $id };
-    place_members($id, $page, '', {});
+  for my $section (topic_sections($module)) {
+    for my $id ($section->{identifiers}->@*) {
+      my $page = $dir . page_name($node{$id});
+      die "two declarations would be documented on $page.md\n"
+        if grep { $_->{name} eq $page } @pages;
+
+      push @pages, { name => $page, id => $id };
+      place_members($id, $page, '', {});
+    }
   }
 }
 
 make_path($out);
+for my $module (@modules) {
+  my $dir = module_dir($module);
+  make_path("$out/$dir") if length $dir;
+  write_file("$out/${dir}index.md", render_module_index($module));
+}
 for my $page (@pages) {
   write_file("$out/$page->{name}.md", render_page($page));
 }
-write_file("$out/index.md", render_index());
+write_file("$out/index.md", render_index()) if $several;
+
+# The directory, with its slash, where a module's pages go below --out, which
+# is --out itself when there is only one module.
+sub module_dir ($module) {
+  return $several ? "$module->{json}{metadata}{title}/" : '';
+}
 
 sub load_nodes ($dir) {
   my %node;
@@ -272,44 +323,76 @@ sub render_body ($node, $level, $page, $source) {
 }
 
 sub rewrite_links ($line, $page) {
-  my $bundle = $module->{json}{identifier}{url} =~ s{\A(doc://[^/]+).*}{$1}r;
-
-  $line =~ s{\[([^\]]*)\]\((/documentation/[^)\s]+)\)}{
-    my ($text, $path) = ($1, $2);
-    my $where = $place{"$bundle$path"};
+  $line =~ s{\[([^\]]*)\]\((/documentation/([^/)\s]+)[^)\s]*)\)}{
+    my ($text, $path, $name) = ($1, $2, $3);
+    my $where = $bundle{$name} && $place{"$bundle{$name}$path"};
     $where ? "[$text](" . link_to($where, $page) . ")" : $text;
   }ge;
 
   return $line;
 }
 
+# A relative link from one page to a place on another, or on itself.  Pages
+# are at most one directory down, so a link between two directories goes up
+# one and down one.
 sub link_to ($where, $from) {
   my ($page, $anchor) = @$where;
-  my $file = $page eq $from ? '' : "$page.md";
+  my ($from_dir) = $from =~ m{\A(.*/)?};
+  my ($to_dir, $to_name) = $page =~ m{\A(.*/)?(.*)\z};
+  $_ //= '' for $from_dir, $to_dir;
+
+  my $file = $page eq $from         ? ''
+           : $from_dir eq $to_dir   ? "$to_name.md"
+           : length $from_dir       ? "../$page.md"
+           :                          "$page.md";
+
   return defined $anchor ? "$file#$anchor" : $file;
 }
 
-sub render_index () {
-  my $title = $module->{json}{metadata}{title};
-  my $text = "# $title\n\n";
-  $text .= "$intro\n\n" if defined $intro;
+# The index of one module's pages, under the module's topic headings, after
+# the module's own documentation.
+sub render_module_index ($module) {
+  my $dir = module_dir($module);
+  my $from = "${dir}index";
+
+  my $text = "# $module->{json}{metadata}{title}\n\n";
+  $text .= "$intro\n\n" if defined $intro && !$several;
+  $text .= render_body($module, 1, $from, undef);
 
   for my $section (topic_sections($module)) {
     $text .= '## ' . sentence_case($section->{title}) . "\n\n";
-
-    # The class lets the site keep the names in the first column from
-    # wrapping, which they otherwise do mid-word, squeezed by the summaries.
-    $text .= qq{<div class="manual-index" markdown>\n\n};
-    $text .= "| Name | |\n|---|---|\n";
-    for my $id ($section->{identifiers}->@*) {
-      my $page = page_name($node{$id});
-      my $summary = escape_cell(abstract($node{$id}, 'index'));
-      $text .= "| [`$node{$id}{json}{metadata}{title}`]($page.md) | $summary |\n";
-    }
-    $text .= "\n</div>\n\n";
+    $text .= index_table($from, map {;
+      [ "`$node{$_}{json}{metadata}{title}`", $place{$_}, abstract($node{$_}, $from) ]
+    } $section->{identifiers}->@*);
   }
 
   return $text;
+}
+
+# The index of the modules, when there are several, each with its summary.
+sub render_index () {
+  my $text = "# $title\n\n";
+  $text .= "$intro\n\n" if defined $intro;
+
+  $text .= index_table('index', map {;
+    [ "`$_->{json}{metadata}{title}`", [ module_dir($_) . 'index' ], abstract($_, 'index') ]
+  } @modules);
+
+  return $text;
+}
+
+# A table of links, each with a summary, from rows of [ label, place,
+# summary ], on the page $from.
+sub index_table ($from, @rows) {
+  # The class lets the site keep the names in the first column from
+  # wrapping, which they otherwise do mid-word, squeezed by the summaries.
+  my $text = qq{<div class="manual-index" markdown>\n\n};
+  $text .= "| Name | |\n|---|---|\n";
+  for my $row (@rows) {
+    my ($label, $where, $summary) = @$row;
+    $text .= "| [$label](" . link_to($where, $from) . ") | " . escape_cell($summary) . " |\n";
+  }
+  return "$text\n</div>\n\n";
 }
 
 # The first paragraph of a symbol's page, which DocC makes from the first
