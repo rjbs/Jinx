@@ -151,6 +151,18 @@ sub render_node ($id, $level, $page) {
   my $source = $meta->{remoteSource} && $meta->{remoteSource}{url};
   $text .= render_body($node, $level, $page, $source);
 
+  # A page of extensions to another module starts its headings a level
+  # higher than other pages, with no "Extended structures" and the like.  The
+  # page's title already says that all it holds are extensions, and an
+  # extended type's protocol implementations, like SetError's "Decodable
+  # implementations" and their members, take every level that's left.
+  if ($level == 1 && is_extended_module($node)) {
+    $text .= render_node($_, 2, $page)
+      for map { $_->{identifiers}->@* } topic_sections($node);
+
+    return $text;
+  }
+
   for my $section (topic_sections($node)) {
     die "$meta->{title} is nested too deeply for Markdown's headings\n"
       if $level + 2 > 6;
@@ -160,6 +172,10 @@ sub render_node ($id, $level, $page) {
   }
 
   return $text;
+}
+
+sub is_extended_module ($node) {
+  return ($node->{json}{metadata}{roleHeading} // '') eq 'Extended Module';
 }
 
 # The body of a symbol's own Markdown page, without its title.  DocC's
