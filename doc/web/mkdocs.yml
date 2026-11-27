@@ -1,7 +1,7 @@
 site_name: Jinx
 site_description: >-
-  A walk through Jinx, a Swift library that keeps a local copy of JMAP
-  data in sync with a server, written for people who know the protocol
+  Jinx, a Swift library that keeps a local copy of JMAP data in sync with a
+  server: a manual that walks through it, for people who know the protocol
   but have not built a client.
 # The 404 page can be served at any depth, so it alone needs the site's path
 # to find its style sheets, and it takes that from here.  Every other page
@@ -26,6 +26,8 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
   features:
+    - navigation.indexes
+    - navigation.tabs
     - content.code.copy
     - navigation.footer
     - navigation.top
@@ -51,21 +53,24 @@ markdown_extensions:
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
 
+# A new unit must be added here, or it is built but appears in no menu.
 nav:
   - Home: index.md
-  - 1. Orientation: 01-orientation.md
-  - 2. One JSON: 02-json.md
-  - 3. The wire: 03-wire.md
-  - 4. Patches: 04-patches.md
-  - 5. The synced object: 05-synced-object.md
-  - 6. The store: 06-store.md
-  - 7. Describing a type: 07-type-descriptors.md
-  - 8. Sync in: 08-sync-in.md
-  - 9. Sync out: 09-sync-out.md
-  - 10. Windowed sync: 10-windowed.md
-  - 11. Blobs: 11-blobs.md
-  - 12. Running the engine: 12-running.md
-  - 13. Testing: 13-testing.md
-  - 14. Capstone: 14-capstone.md
-  - Glossary: glossary.md
-  - File map: file-map.md
+  - Manual:
+    - manual/index.md
+    - 1. Orientation: manual/01-orientation.md
+    - 2. One JSON: manual/02-json.md
+    - 3. The wire: manual/03-wire.md
+    - 4. Patches: manual/04-patches.md
+    - 5. The synced object: manual/05-synced-object.md
+    - 6. The store: manual/06-store.md
+    - 7. Describing a type: manual/07-type-descriptors.md
+    - 8. Sync in: manual/08-sync-in.md
+    - 9. Sync out: manual/09-sync-out.md
+    - 10. Windowed sync: manual/10-windowed.md
+    - 11. Blobs: manual/11-blobs.md
+    - 12. Running the engine: manual/12-running.md
+    - 13. Testing: manual/13-testing.md
+    - 14. Capstone: manual/14-capstone.md
+    - Glossary: manual/glossary.md
+    - File map: manual/file-map.md

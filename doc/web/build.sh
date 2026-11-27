@@ -1,9 +1,9 @@
 #!/bin/sh
-# Builds or serves the Jinx manual with Zensical, run in Docker so that
+# Builds or serves the Jinx site with Zensical, run in Docker so that
 # nothing need be installed locally beyond Docker itself.
 #
-#   doc/manual/build.sh          # builds into doc/manual/site/
-#   doc/manual/build.sh serve    # serves at http://localhost:8000 with reload
+#   doc/web/build.sh          # builds into doc/web/site/
+#   doc/web/build.sh serve    # serves at http://localhost:8000 with reload
 #
 # The version here and the one in requirements.txt, which the Pages workflow
 # installs, should be the same.

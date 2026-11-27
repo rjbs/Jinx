@@ -3,4 +3,5 @@
 *.xcodeproj
 xcuserdata/
 DerivedData/
-doc/manual/site/
+doc/web/site/
+doc/web/.cache/
