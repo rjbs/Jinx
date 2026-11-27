@@ -28,3 +28,12 @@
   --md-default-fg-color--lighter: #ffffff4d;
   --md-default-bg-color--light: #ffffff33;
 }
+
+/* This rule is the reference's, and is the same in NerfJournal's manual.
+   Material lets code break anywhere, so that it never overflows, and in the
+   index's tables the summaries squeeze the column of names until they break
+   mid-word.  The longest name is short enough to keep whole. */
+.manual-index td:first-child code {
+  white-space: nowrap;
+  word-break: normal;
+}

@@ -10,8 +10,9 @@ implemented a client.  It assumes you can read RFC 8620 without help,
 and it does not repeat it.  What it does instead is take each problem
 the protocol leaves to the client and show what Jinx does about it.
 
-It is not reference documentation.  The public API is documented in the
-source, and the design that preceded the code is in
+It is not reference documentation.  That is the
+[reference](../reference/index.md), written from the doc comments in the
+source.  The design that preceded the code is in
 [`doc/plan.md`](https://github.com/rjbs/jinx/blob/main/doc/plan.md).
 When this manual and the code disagree, the code is right and the
 manual has a bug.

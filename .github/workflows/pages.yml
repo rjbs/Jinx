@@ -1,10 +1,14 @@
-name: Deploy the manual to GitHub Pages
+name: Deploy the site to GitHub Pages
 
 on:
   push:
     branches: [main]
     paths:
-      - 'doc/manual/**'
+      - 'doc/web/**'
+      - 'Sources/**'
+      - 'Package.swift'
+      - 'Package.resolved'
+      - 'bin/docc-manual'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -19,7 +23,9 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # The reference is made by building Jinx, which builds only on macOS,
+    # and with an SDK new enough for its platform requirement.
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v4
 
@@ -30,15 +36,18 @@ jobs:
       - uses: actions/configure-pages@v5
 
       - name: Install Zensical
-        run: pip install -r doc/manual/requirements.txt
+        run: pip install -r doc/web/requirements.txt
+
+      - name: Write the reference
+        run: doc/web/prepare
 
       - name: Build site
         run: zensical build --clean --strict
-        working-directory: doc/manual
+        working-directory: doc/web
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: doc/manual/site
+          path: doc/web/site
 
   deploy:
     runs-on: ubuntu-latest
