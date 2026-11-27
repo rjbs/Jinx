@@ -1,0 +1,82 @@
+#!/bin/sh
+# Writes the reference, one section for each of Jinx's library modules and
+# one page for each of a module's public top-level declarations, from their
+# doc comments, into doc/web/docs/reference/.  DocC writes the Markdown, and
+# bin/docc-manual makes a manual of it.  The pages are made fresh for every
+# build and never committed.  Each declaration links to its source at the
+# commit being built.
+#
+#   doc/web/prepare
+#
+# This needs Xcode, not just a Swift toolchain: DocC reads a symbol graph,
+# which is made by building Jinx, and Jinx builds only on macOS.
+set -e
+cd "$(dirname "$0")/../.."
+
+# The library modules, in the order of the stack from the bottom, as the
+# manual's orientation unit has them.  JinxInspectorDemo is an app, and
+# Cnotify is a shim for notify(3), so neither is here.
+modules="JinxJSON JinxWire JinxPatch JinxStore Jinx JinxTypes JinxScriptedServer JinxInspector"
+
+rev=$(git rev-parse HEAD)
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+graphs=$(
+  swift package dump-symbol-graph \
+    --minimum-access-level public \
+    --skip-synthesized-members |
+  sed -n 's/^Files written to //p'
+)
+if [ -z "$graphs" ]; then
+  echo "prepare: dump-symbol-graph didn't say where it wrote the graphs" >&2
+  exit 1
+fi
+
+# DocC documents one module at a time, so each gets a directory of its own
+# graphs: its symbols, and its extensions to other modules, like
+# JinxStore@JinxWire.symbols.json.
+mkdir "$work/docc"
+set --
+for module in $modules; do
+  mkdir -p "$work/graphs/$module"
+  cp "$graphs/$module.symbols.json" "$work/graphs/$module/"
+  for extension in "$graphs/$module"@*.symbols.json; do
+    if [ -e "$extension" ]; then
+      cp "$extension" "$work/graphs/$module/"
+    fi
+  done
+
+  xcrun docc convert "Sources/$module/$module.docc" \
+    --additional-symbol-graph-dir "$work/graphs/$module" \
+    --fallback-display-name "$module" \
+    --fallback-bundle-identifier "systems.semiotic.jinx.$module" \
+    --output-path "$work/docc/$module" \
+    --enable-experimental-markdown-output \
+    --enable-experimental-markdown-output-manifest \
+    --source-service github \
+    --source-service-base-url "https://github.com/rjbs/jinx/blob/$rev" \
+    --checkout-path "$PWD" \
+    --warnings-as-errors
+
+  set -- "$@" --docc "$work/docc/$module"
+done
+
+rm -rf doc/web/docs/reference
+bin/docc-manual "$@" \
+  --out doc/web/docs/reference \
+  --title Reference \
+  --intro "Jinx's public interface, module by module, written by DocC from the
+doc comments in its source.  For how the pieces fit together, read the
+[manual](../manual/index.md)."
+
+# Zensical builds a page that the nav doesn't list without complaint, and
+# it then appears in no menu, so a new declaration must be caught here.
+missing=0
+for page in $(cd doc/web/docs && find reference -name '*.md' | sort); do
+  if ! grep -q " $page\$" doc/web/mkdocs.yml; then
+    echo "prepare: $page is not in the nav in doc/web/mkdocs.yml" >&2
+    missing=1
+  fi
+done
+exit $missing

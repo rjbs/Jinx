@@ -2,7 +2,7 @@ site_name: Jinx
 site_description: >-
   Jinx, a Swift library that keeps a local copy of JMAP data in sync with a
   server: a manual that walks through it, for people who know the protocol
-  but have not built a client.
+  but have not built a client, and a reference to its public interface.
 # The 404 page can be served at any depth, so it alone needs the site's path
 # to find its style sheets, and it takes that from here.  Every other page
 # links relatively.  If the site moves, change this, or the 404 page comes
@@ -53,7 +53,9 @@ markdown_extensions:
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
 
-# A new unit must be added here, or it is built but appears in no menu.
+# A new unit must be added here, or it is built but appears in no menu.  So
+# must a new top-level declaration in one of the library modules, and
+# prepare fails until it is.
 nav:
   - Home: index.md
   - Manual:
@@ -74,3 +76,106 @@ nav:
     - 14. Capstone: manual/14-capstone.md
     - Glossary: manual/glossary.md
     - File map: manual/file-map.md
+  - Reference:
+    - reference/index.md
+    - JinxJSON:
+      - reference/JinxJSON/index.md
+      - JSONPointer: reference/JinxJSON/JSONPointer.md
+      - JSONValue: reference/JinxJSON/JSONValue.md
+    - JinxWire:
+      - reference/JinxWire/index.md
+      - Authenticator: reference/JinxWire/Authenticator.md
+      - Backoff: reference/JinxWire/Backoff.md
+      - BasicCredentials: reference/JinxWire/BasicCredentials.md
+      - BearerToken: reference/JinxWire/BearerToken.md
+      - BlobDownload: reference/JinxWire/BlobDownload.md
+      - CallExchange: reference/JinxWire/CallExchange.md
+      - ChangesResponse: reference/JinxWire/ChangesResponse.md
+      - EventSourceClient: reference/JinxWire/EventSourceClient.md
+      - GetResponse: reference/JinxWire/GetResponse.md
+      - Invocation: reference/JinxWire/Invocation.md
+      - JinxJSON extensions: reference/JinxWire/JinxJSON.md
+      - JMAPClient: reference/JinxWire/JMAPClient.md
+      - JMAPError: reference/JinxWire/JMAPError.md
+      - JMAPTransport: reference/JinxWire/JMAPTransport.md
+      - LineSplitter: reference/JinxWire/LineSplitter.md
+      - MethodError: reference/JinxWire/MethodError.md
+      - NoAuthentication: reference/JinxWire/NoAuthentication.md
+      - PushEvent: reference/JinxWire/PushEvent.md
+      - QueryChangesResponse: reference/JinxWire/QueryChangesResponse.md
+      - QueryResponse: reference/JinxWire/QueryResponse.md
+      - Request: reference/JinxWire/Request.md
+      - RequestBuilder: reference/JinxWire/RequestBuilder.md
+      - RequestError: reference/JinxWire/RequestError.md
+      - Response: reference/JinxWire/Response.md
+      - ResultReference: reference/JinxWire/ResultReference.md
+      - ServerSentEvent: reference/JinxWire/ServerSentEvent.md
+      - ServerSentEventParser: reference/JinxWire/ServerSentEventParser.md
+      - Session: reference/JinxWire/Session.md
+      - SetError: reference/JinxWire/SetError.md
+      - SetResponse: reference/JinxWire/SetResponse.md
+      - StateChange: reference/JinxWire/StateChange.md
+      - TransportContext: reference/JinxWire/TransportContext.md
+      - TransportExchange: reference/JinxWire/TransportExchange.md
+      - TransportRecorder: reference/JinxWire/TransportRecorder.md
+      - UploadResponse: reference/JinxWire/UploadResponse.md
+      - URLTemplate: reference/JinxWire/URLTemplate.md
+      - WireTap: reference/JinxWire/WireTap.md
+      - WireTapToken: reference/JinxWire/WireTapToken.md
+    - JinxPatch:
+      - reference/JinxPatch/index.md
+      - JinxJSON extensions: reference/JinxPatch/JinxJSON.md
+      - MayPatch: reference/JinxPatch/MayPatch.md
+      - patchAnywhere: reference/JinxPatch/patchAnywhere.md
+      - PatchError: reference/JinxPatch/PatchError.md
+      - PatchObject: reference/JinxPatch/PatchObject.md
+      - Rebase: reference/JinxPatch/Rebase.md
+    - JinxStore:
+      - reference/JinxStore/index.md
+      - BlobChange: reference/JinxStore/BlobChange.md
+      - BlobRecord: reference/JinxStore/BlobRecord.md
+      - ChangeSet: reference/JinxStore/ChangeSet.md
+      - GRDBSyncStore: reference/JinxStore/GRDBSyncStore.md
+      - GRDBTransaction: reference/JinxStore/GRDBTransaction.md
+      - JinxWire extensions: reference/JinxStore/JinxWire.md
+      - JournalEntry: reference/JinxStore/JournalEntry.md
+      - LocalKey: reference/JinxStore/LocalKey.md
+      - NewObject: reference/JinxStore/NewObject.md
+      - PendingEntry: reference/JinxStore/PendingEntry.md
+      - PendingOperation: reference/JinxStore/PendingOperation.md
+      - QuerySubscription: reference/JinxStore/QuerySubscription.md
+      - StoredObject: reference/JinxStore/StoredObject.md
+      - StoreError: reference/JinxStore/StoreError.md
+      - SubscriptionResult: reference/JinxStore/SubscriptionResult.md
+      - SyncStore: reference/JinxStore/SyncStore.md
+      - SyncTransaction: reference/JinxStore/SyncTransaction.md
+    - Jinx:
+      - reference/Jinx/index.md
+      - BlobError: reference/Jinx/BlobError.md
+      - BlobStore: reference/Jinx/BlobStore.md
+      - Classification: reference/Jinx/Classification.md
+      - DarwinNotification: reference/Jinx/DarwinNotification.md
+      - FailureClass: reference/Jinx/FailureClass.md
+      - InitialSyncProgress: reference/Jinx/InitialSyncProgress.md
+      - InspectedObject: reference/Jinx/InspectedObject.md
+      - InspectedSubscription: reference/Jinx/InspectedSubscription.md
+      - InspectedType: reference/Jinx/InspectedType.md
+      - Swift extensions: reference/Jinx/Swift.md
+      - SyncConfiguration: reference/Jinx/SyncConfiguration.md
+      - SyncedObject: reference/Jinx/SyncedObject.md
+      - SyncEngine: reference/Jinx/SyncEngine.md
+      - SyncError: reference/Jinx/SyncError.md
+      - SyncInspecting: reference/Jinx/SyncInspecting.md
+      - SyncStatus: reference/Jinx/SyncStatus.md
+      - TypeDescriptor: reference/Jinx/TypeDescriptor.md
+      - Writer: reference/Jinx/Writer.md
+    - JinxTypes:
+      - reference/JinxTypes/index.md
+      - MailTypes: reference/JinxTypes/MailTypes.md
+      - TaskTypes: reference/JinxTypes/TaskTypes.md
+    - JinxScriptedServer:
+      - reference/JinxScriptedServer/index.md
+      - ScriptedServer: reference/JinxScriptedServer/ScriptedServer.md
+    - JinxInspector:
+      - reference/JinxInspector/index.md
+      - JinxInspectorView: reference/JinxInspector/JinxInspectorView.md

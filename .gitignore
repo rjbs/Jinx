@@ -5,3 +5,6 @@ xcuserdata/
 DerivedData/
 doc/web/site/
 doc/web/.cache/
+
+# The reference, written by doc/web/prepare at each build
+doc/web/docs/reference/

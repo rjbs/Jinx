@@ -14,5 +14,6 @@ JMAP server for tests.  Run `swift test` to see it all pass.
   what each needs.
 - [plan.md](doc/plan.md): the proposed architecture and the order of work.
 - [web/](doc/web/): the site, whose manual walks through the library for
-  someone who knows JMAP but has not built a client.  `doc/web/build.sh
-  serve` renders it with Zensical in Docker.
+  someone who knows JMAP but has not built a client, and whose reference is
+  written from the doc comments.  `doc/web/build.sh serve` renders it with
+  Zensical in Docker.

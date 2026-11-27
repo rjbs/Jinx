@@ -8,5 +8,7 @@ application defines for itself.
 - **[The manual](manual/index.md)** walks through Jinx's components and the
   way they fit together, for someone who knows JMAP and has not built a
   client.
+- **[The reference](reference/index.md)** documents the public interface of
+  each of Jinx's modules, from the doc comments in its source.
 
 The source is [on GitHub](https://github.com/rjbs/jinx).
