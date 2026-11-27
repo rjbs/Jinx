@@ -8,3 +8,6 @@ doc/web/.cache/
 
 # The reference, written by doc/web/prepare at each build
 doc/web/docs/reference/
+
+# Copied in from imprint by its build-site
+/doc/web/docs/imprint.css
