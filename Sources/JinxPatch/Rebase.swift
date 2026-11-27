@@ -29,6 +29,8 @@ extension Rebase {
   ///   - local: the local value, which differs from `serverVersion` by the
   ///     pending change.
   ///   - fetched: the server object as just fetched.
+  ///   - mayPatch: where the pending change may be expressed as patches
+  ///     inside an object, as for `PatchObject.diff(from:to:mayPatch:)`.
   public init(
     serverVersion: JSONValue,
     local: JSONValue,
