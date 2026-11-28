@@ -44,19 +44,42 @@ asks for at most that many objects, and the request can never draw
 `requestTooLarge` however large the delta.  Chunking falls out of the
 protocol's own limit, with no second request to split.
 
-```mermaid
-sequenceDiagram
-  participant D as Store
-  participant E as SyncEngine
-  participant S as Server
-  loop until no type has more changes
-    E->>D: read each type's state
-    E->>S: one request: per type, /changes + /get created + /get updated
-    S-->>E: response
-    E->>D: one transaction: apply objects, remove destroyed, store states, append journal
-    Note over E: emit the change set
-  end
-```
+<figure class="jinx-figure">
+<svg viewBox="0 0 760 406" width="760" height="406" role="img" aria-labelledby="round-title">
+<title id="round-title">One incremental round, repeated until no type has more changes</title>
+<defs>
+<marker id="round-tip" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path class="tip" d="M0,1 L10,5 L0,9 z"/></marker>
+</defs>
+<line class="life" x1="110" y1="56" x2="110" y2="396"/>
+<line class="life" x1="380" y1="56" x2="380" y2="396"/>
+<line class="life" x1="650" y1="56" x2="650" y2="396"/>
+<rect class="blk" x="35" y="10" width="150" height="46" rx="6"/>
+<text class="nm" x="110" y="38" text-anchor="middle">Store</text>
+<rect class="blk" x="305" y="10" width="150" height="46" rx="6"/>
+<text class="nm" x="380" y="38" text-anchor="middle">SyncEngine</text>
+<rect class="blk" x="575" y="10" width="150" height="46" rx="6"/>
+<text class="nm" x="650" y="38" text-anchor="middle">Server</text>
+<rect class="ext" x="16" y="76" width="728" height="320" rx="6"/>
+<path class="tab" d="M16,82 a6,6 0 0 1 6,-6 h252 l0,16 l-10,10 h-248 z"/>
+<text class="tabt" x="26" y="94">LOOP <tspan class="tabc">until no type has more changes</tspan></text>
+<rect class="act" x="373" y="118" width="14" height="262" rx="2"/>
+<text class="lbl" x="245" y="138" text-anchor="middle">read each type's state</text>
+<line class="msg" x1="373" y1="148" x2="112" y2="148" marker-end="url(#round-tip)"/>
+<text class="lbl" x="515" y="176" text-anchor="middle">one request</text>
+<text class="sub" x="515" y="192" text-anchor="middle">per type: /changes, /get created,</text>
+<text class="sub" x="515" y="207" text-anchor="middle">/get updated</text>
+<line class="msg" x1="387" y1="218" x2="648" y2="218" marker-end="url(#round-tip)"/>
+<text class="lbl" x="515" y="248" text-anchor="middle">response</text>
+<line class="ret" x1="650" y1="258" x2="389" y2="258" marker-end="url(#round-tip)"/>
+<text class="lbl" x="245" y="288" text-anchor="middle">one transaction</text>
+<text class="sub" x="245" y="304" text-anchor="middle">apply objects, remove destroyed,</text>
+<text class="sub" x="245" y="319" text-anchor="middle">store states, append journal</text>
+<line class="msg" x1="373" y1="330" x2="112" y2="330" marker-end="url(#round-tip)"/>
+<rect class="blk" x="400" y="346" width="170" height="28" rx="14"/>
+<text class="sub" x="485" y="364" text-anchor="middle">emit the change set</text>
+</svg>
+<figcaption>Every type with changes still to fetch shares one request and one transaction per round.</figcaption>
+</figure>
 
 The response is applied in one transaction across every type in the
 round, and that transaction decides, per type, which of the following
