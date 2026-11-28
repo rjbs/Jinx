@@ -92,17 +92,53 @@ Task { await engine.run() }
 the loop, which runs that pass after its debounce.  This pass is the
 interesting one.
 
-```mermaid
-sequenceDiagram
-  participant E as SyncEngine
-  participant S as Server
-  E->>S: Mailbox/changes + Mailbox/get created + Mailbox/get updated
-  E->>S: Thread/changes + Email/changes
-  E->>S: Email/query for the inbox subscription
-  E->>S: Email/get for the 50 ids in the window
-  E->>S: Thread/get for the threads those emails name
-  Note over E: one transaction for the Emails, their Threads and the subscription result, then evict
-```
+<figure class="jinx-figure">
+<svg viewBox="0 0 760 490" width="760" height="490" role="img" aria-labelledby="pass-title">
+<title id="pass-title">The first pass after subscribing to the inbox</title>
+<defs>
+<marker id="pass-tip" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path class="tip" d="M0,1 L10,5 L0,9 z"/></marker>
+</defs>
+<line class="life" x1="110" y1="56" x2="110" y2="480"/>
+<line class="life" x1="380" y1="56" x2="380" y2="480"/>
+<line class="life" x1="650" y1="56" x2="650" y2="480"/>
+<rect class="blk" x="35" y="10" width="150" height="46" rx="6"/>
+<text class="nm" x="110" y="38" text-anchor="middle">Store</text>
+<rect class="blk" x="305" y="10" width="150" height="46" rx="6"/>
+<text class="nm" x="380" y="38" text-anchor="middle">SyncEngine</text>
+<rect class="blk" x="575" y="10" width="150" height="46" rx="6"/>
+<text class="nm" x="650" y="38" text-anchor="middle">Server</text>
+<rect class="act" x="373" y="76" width="14" height="394" rx="2"/>
+<text class="phase" x="362" y="125" text-anchor="end">full types</text>
+<text class="code" x="515" y="96" text-anchor="middle">Mailbox/changes</text>
+<text class="sub" x="515" y="111" text-anchor="middle">with /get created and /get updated</text>
+<line class="msg" x1="387" y1="121" x2="648" y2="121" marker-end="url(#pass-tip)"/>
+<line class="ret" x1="650" y1="133" x2="389" y2="133" marker-end="url(#pass-tip)"/>
+<text class="phase" x="362" y="187" text-anchor="end">windowed types</text>
+<text class="code" x="515" y="173" text-anchor="middle">Thread/changes, Email/changes</text>
+<line class="msg" x1="387" y1="183" x2="648" y2="183" marker-end="url(#pass-tip)"/>
+<line class="ret" x1="650" y1="195" x2="389" y2="195" marker-end="url(#pass-tip)"/>
+<text class="phase" x="362" y="249" text-anchor="end">query</text>
+<text class="code" x="515" y="220" text-anchor="middle">Email/query</text>
+<text class="sub" x="515" y="235" text-anchor="middle">the inbox subscription</text>
+<line class="msg" x1="387" y1="245" x2="648" y2="245" marker-end="url(#pass-tip)"/>
+<line class="ret" x1="650" y1="257" x2="389" y2="257" marker-end="url(#pass-tip)"/>
+<text class="phase" x="362" y="311" text-anchor="end">fill</text>
+<text class="code" x="515" y="282" text-anchor="middle">Email/get</text>
+<text class="sub" x="515" y="297" text-anchor="middle">the 50 ids in the window</text>
+<line class="msg" x1="387" y1="307" x2="648" y2="307" marker-end="url(#pass-tip)"/>
+<line class="ret" x1="650" y1="319" x2="389" y2="319" marker-end="url(#pass-tip)"/>
+<text class="phase" x="362" y="373" text-anchor="end">references</text>
+<text class="code" x="515" y="344" text-anchor="middle">Thread/get</text>
+<text class="sub" x="515" y="359" text-anchor="middle">the Threads those Emails name</text>
+<line class="msg" x1="387" y1="369" x2="648" y2="369" marker-end="url(#pass-tip)"/>
+<line class="ret" x1="650" y1="381" x2="389" y2="381" marker-end="url(#pass-tip)"/>
+<text class="lbl" x="245" y="412" text-anchor="middle">one transaction</text>
+<text class="sub" x="245" y="428" text-anchor="middle">the Emails, their Threads, and the</text>
+<text class="sub" x="245" y="443" text-anchor="middle">subscription result; then evict</text>
+<line class="msg" x1="373" y1="454" x2="112" y2="454" marker-end="url(#pass-tip)"/>
+</svg>
+<figcaption>Five round trips, one per step, and everything they fetched is stored in one transaction at the end.</figcaption>
+</figure>
 
 The query is the subscription's arguments with the engine's on top:
 
