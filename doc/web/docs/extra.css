@@ -24,3 +24,5 @@
 .jinx-figure .tab  { fill: var(--md-primary-fg-color); }
 .jinx-figure .tabt { fill: var(--md-primary-bg-color); font-size: 12px; font-weight: 700; letter-spacing: 0.05em; }
 .jinx-figure .tabc { font-weight: 400; letter-spacing: 0; }
+.jinx-figure .code  { fill: var(--md-default-fg-color); font-family: var(--md-code-font-family, monospace); font-size: 13px; font-weight: 600; }
+.jinx-figure .phase { fill: var(--md-default-fg-color--light); font-size: 12px; font-style: italic; }
